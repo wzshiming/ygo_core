@@ -8,13 +8,12 @@ import (
 	"github.com/wzshiming/base"
 	"github.com/wzshiming/dispatcher"
 	"github.com/wzshiming/server/agent"
-	"github.com/wzshiming/server/rooms"
 )
 
 type YGO struct {
 	dispatcher.Events
 	CardVer  *CardVersion
-	Room     *rooms.Rooms
+	Room     *agent.Room
 	StartAt  time.Time
 	Cards    map[uint]*Card
 	Players  map[uint]*Player
@@ -30,7 +29,7 @@ type YGO struct {
 	multi map[string]bool
 }
 
-func NewYGO(r *rooms.Rooms) *YGO {
+func NewYGO(r *agent.Room) *YGO {
 	yg := &YGO{
 		Events:   dispatcher.NewLineEvent(),
 		Room:     r,
@@ -133,8 +132,6 @@ func (yg *YGO) CallAll(method string, reply interface{}) error {
 	yg.Room.BroadcastPush(Call{
 		Method: method,
 		Args:   reply,
-	}, func(sess *agent.Session) {
-		yg.Over = true
 	})
 	return nil
 }
@@ -186,11 +183,10 @@ func (yg *YGO) Loop() {
 
 	nap(10) // 牌组初始化
 	for _, v := range yg.round {
-		var s struct {
-			Deck proto.Deck `json:"deck"`
-		}
-		yg.Players[v].Session.Data.DeJson(&s)
-		yg.Players[v].initDeck(s.Deck.GetMain(), s.Deck.GetExtra())
+		var deck proto.Deck
+
+		yg.Players[v].Session.Data.Get("deck", &deck)
+		yg.Players[v].initDeck(deck.GetMain(), deck.GetExtra())
 	}
 
 	nap(20) // 手牌初始化
