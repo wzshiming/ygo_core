@@ -1,7 +1,6 @@
 package ygo_cord
 
 import (
-	"fmt"
 	"service/proto"
 	"time"
 
@@ -40,12 +39,6 @@ func NewYGO(r *agent.Room) *YGO {
 		both:     map[string]bool{},
 		multi:    map[string]bool{},
 	}
-
-	yg.Room.ForEach(func(sess *agent.Session) {
-		p := NewPlayer(yg)
-		p.Session = sess
-		yg.Players[sess.ToUint()] = p
-	})
 
 	return yg
 }
@@ -129,7 +122,7 @@ func (yg *YGO) ForEachPlayer(fun func(*Player)) {
 }
 
 func (yg *YGO) CallAll(method string, reply interface{}) error {
-	yg.Room.BroadcastPush(Call{
+	yg.Room.Broadcast(Call{
 		Method: method,
 		Args:   reply,
 	})
@@ -146,6 +139,12 @@ func (yg *YGO) Loop() {
 			base.DebugStack()
 		}
 	}()
+	yg.Room.ForEach(func(sess *agent.Session) {
+		p := NewPlayer(yg)
+		p.Session = sess
+		yg.Players[sess.ToUint()] = p
+	})
+
 	nap(1) // 服务端初始化
 	for k, _ := range yg.Players {
 		yg.round = append(yg.round, k)
@@ -157,7 +156,9 @@ func (yg *YGO) Loop() {
 		yg.Players[v].Index = k
 		yg.Players[v].game = yg
 		yg.Players[v].RoundSize = 0
-		yg.Players[v].Name = fmt.Sprintf("玩家%d", k)
+		var name string
+		yg.Players[v].Session.Data.Get("username", &name)
+		yg.Players[v].Name = "玩家 " + name
 	}
 
 	nap(1) // 客户端初始化
@@ -184,7 +185,6 @@ func (yg *YGO) Loop() {
 	nap(10) // 牌组初始化
 	for _, v := range yg.round {
 		var deck proto.Deck
-
 		yg.Players[v].Session.Data.Get("deck", &deck)
 		yg.Players[v].initDeck(deck.GetMain(), deck.GetExtra())
 	}
@@ -214,7 +214,6 @@ func (yg *YGO) Loop() {
 	if pl.Portrait.Len() == 1 {
 		ca := pl.Portrait.Get(0)
 		ca.RegisterGlobalListen(BP, func(tar *Player) {
-
 			tar.Mzone.ForEach(func(c *Card) bool {
 				c.SetNotCanAttack()
 				return true
@@ -223,9 +222,13 @@ func (yg *YGO) Loop() {
 		ca.RegisterGlobalListen(RoundEnd, func() {
 			ca.UnregisterGlobalListen()
 		})
-
 	}
 
+	yg.Room.LeaveEvent(func(sess *agent.Session) {
+		pl := yg.Players[sess.ToUint()]
+		yg.Current.MsgPub("{rival}退出游戏", Arg{"rival": pl.Name})
+		pl.Fail()
+	})
 loop:
 	for {
 		for _, v := range yg.round {

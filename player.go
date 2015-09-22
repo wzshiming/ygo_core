@@ -169,7 +169,7 @@ func (pl *Player) MsgPub(fmts string, a Arg) {
 
 func (pl *Player) Fail() {
 	pl.fail = true
-	panic("Fail")
+	//panic("Fail")
 }
 
 func (pl *Player) IsFail() bool {
