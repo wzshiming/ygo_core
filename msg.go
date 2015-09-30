@@ -6,22 +6,15 @@ type MsgCode struct {
 }
 
 type MsgChan struct {
-	primary   chan MsgCode
 	secondary chan MsgCode
+	msgfunc   func(MsgCode) bool
 }
 
 func NewMsgChan(m func(MsgCode) bool) MsgChan {
 	mc := MsgChan{
-		primary:   make(chan MsgCode, 128),
-		secondary: make(chan MsgCode, 2048),
+		secondary: make(chan MsgCode, 16),
+		msgfunc:   m,
 	}
-	go func() {
-		for v := range mc.primary {
-			if m(v) {
-				mc.secondary <- v
-			}
-		}
-	}()
 	return mc
 }
 
@@ -30,7 +23,16 @@ func (mc *MsgChan) AddCode(uniq, method uint) {
 		Uniq:   uniq,
 		Method: method,
 	}
-	mc.primary <- c
+	if mc.msgfunc(c) {
+		for {
+			select {
+			case mc.secondary <- c:
+				return
+			default:
+				mc.ClearCode()
+			}
+		}
+	}
 }
 
 func (mc *MsgChan) GetCode() <-chan MsgCode {

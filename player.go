@@ -47,8 +47,6 @@ type Player struct {
 
 	// 其他的
 	lastSummonRound int // 最后召唤回合
-	//	pending   map[uint]*Card
-	//	cardevent map[string][]*Card
 	// 是否失败
 	fail bool
 }
@@ -64,8 +62,6 @@ func NewPlayer(yg *YGO) *Player {
 		OverTime:  time.Second * 120,
 		WaitTime:  time.Second * 60,
 		ReplyTime: time.Second * 20,
-		//		pending:   make(map[uint]*Card),
-		//		cardevent: make(map[string][]*Card),
 	}
 	var pr uint
 	pl.MsgChan = NewMsgChan(func(m MsgCode) bool {
@@ -75,7 +71,7 @@ func NewPlayer(yg *YGO) *Player {
 			if ca := pl.Game().GetCard(m.Uniq); ca != nil {
 				if m.Method == uint(LI_Over) {
 					if pr != 0 {
-						pl.GetTarget().CallAll(touch(pr, 1, 1, 1))
+						pl.Game().CallAll(touch(pr, 1, 1, 1))
 						pr = 0
 					}
 					pl.GetTarget().Call(touch(m.Uniq, -1, -100, 100))
@@ -83,7 +79,7 @@ func NewPlayer(yg *YGO) *Player {
 					if pr == m.Uniq {
 						pr = 0
 					}
-					pl.GetTarget().CallAll(touch(m.Uniq, 1, 1, 1))
+					pl.Game().CallAll(touch(m.Uniq, 1, 1, 1))
 				} else {
 					return true
 				}
@@ -128,13 +124,6 @@ func (pl *Player) Dispatch(eventName string, args ...interface{}) {
 	pl.Events.Dispatch(eventName, args...)
 }
 
-//func (pl *Player) Listen(ca *Card, eventName string, callback interface{}, token ...interface{}) {
-//	pl.AddEvent(eventName, callback, token...)
-//	ca.OnlyOnce(UnregisterGlobalListen, func() {
-//		pl.RemoveEvent(eventName, callback, token...)
-//	}, eventName, callback, token)
-//}
-
 func (pl *Player) Game() *YGO {
 	return pl.game
 }
@@ -149,7 +138,6 @@ func (pl *Player) Msg(fmts string, a Arg) {
 	if a["rival"] == nil {
 		a["rival"] = pl.GetTarget().Name
 	}
-	nap(2)
 	pl.Call(message(fmts, a))
 }
 
@@ -163,7 +151,6 @@ func (pl *Player) MsgPub(fmts string, a Arg) {
 	if a["rival"] == nil {
 		a["rival"] = pl.GetTarget().Name
 	}
-	nap(3)
 	pl.CallAll(message(fmts, a))
 }
 
@@ -209,22 +196,22 @@ func (pl *Player) Chain(eventName string, ca *Card, cs *Cards, a []interface{}) 
 		cs0 := cs.Find(func(c *Card) bool {
 			return c != ca && c.GetSummoner() == pl
 		})
+
 		if cs0.Len() == 0 {
 			cs1 := pl.Szone.Find(func(c *Card) bool {
 				return c.IsFaceDown()
 			})
 			if cs1.Len() == 0 {
 				break
-			} else {
-				//cs0.EndPush(NewNoneCardOriginal().Make(pl))
 			}
 		}
+
 		if ca != nil {
 			pl.MsgPub("{rival}的{event}事件等待{self}连锁", Arg{"rival": ca.ToUint(), "event": eventName})
 		} else {
 			pl.MsgPub("{event}事件等待{self}连锁", Arg{"event": eventName})
 		}
-		c, u := pl.selectForWarn(cs, cs0)
+		c, u := pl.selectForWarn(cs0)
 		if c == nil {
 			if u == LI_No {
 				break
@@ -406,10 +393,8 @@ func (pl *Player) battle(lp lp_type) {
 			if c, _ := pl.selectForWarn(tar.Portrait); c != nil {
 				ca.Dispatch(Declaration, c)
 			}
-
 		}
 	}
-
 }
 
 func (pl *Player) end(lp lp_type) {
@@ -463,12 +448,11 @@ func (pl *Player) ChangeHp(i int) {
 	pl.Hp += i
 	if pl.Hp < 0 {
 		pl.Fail()
-	} else {
-		pl.Portrait.ForEach(func(c *Card) bool {
-			pl.CallAll(changeHp(c, pl.Hp))
-			return true
-		})
 	}
+	pl.Portrait.ForEach(func(c *Card) bool {
+		pl.CallAll(changeHp(c, pl.Hp))
+		return true
+	})
 
 }
 
@@ -507,6 +491,9 @@ func (pl *Player) Call(method string, reply interface{}) error {
 }
 
 func (pl *Player) CallAll(method string, reply interface{}) error {
+	if pl.RoundSize != 0 {
+		nap(1)
+	}
 	return pl.Game().CallAll(method, reply)
 }
 func (pl *Player) IsOutTime() bool {
@@ -536,7 +523,6 @@ func (pl *Player) SetNotCanSummon() {
 }
 
 func (pl *Player) SelectWill() (p MsgCode) {
-	//pl.ClearCode()
 	pl.CallAll(flashPhases(pl))
 	for {
 		select {
@@ -561,9 +547,6 @@ func (pl *Player) Select() (*Card, uint) {
 }
 func (pl *Player) selectForPopup(ci ...interface{}) (c *Card, u uint) {
 	css := NewCards(ci...)
-	//	if css.Len() == 0 {
-	//		return
-	//	}
 	pl.Call(setPick(css, pl))
 	css.ForEach(func(c *Card) bool {
 		c.Peek()
@@ -584,9 +567,6 @@ func (pl *Player) SelectForPopup(ci ...interface{}) *Card {
 
 func (pl *Player) selectForWarn(ci ...interface{}) (c *Card, u uint) {
 	css := NewCards(ci...)
-	//	if css.Len() == 0 {
-	//		return
-	//	}
 	pl.Call(trigg(css))
 	defer func() {
 		pl.Call(trigg(nil))

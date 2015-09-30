@@ -94,7 +94,7 @@ func (yg *YGO) Chain(eventName string, ca *Card, pl *Player, args []interface{})
 	})
 	if cs.Len() > 0 || yg.both[eventName] {
 		pl.Chain(eventName, ca, cs, args)
-		if yg.both[eventName] {
+		if yg.both[eventName] && ca.IsValid() {
 			pl.GetTarget().Chain(eventName, ca, cs, args)
 		}
 	}
@@ -234,14 +234,13 @@ loop:
 		for _, v := range yg.round {
 			nap(5)
 			yg.Current = yg.Players[v]
-			if !yg.Current.IsFail() {
-				yg.Current.round()
-				if yg.Current.IsFail() {
+			yg.Current.round()
+			yg.ForEachPlayer(func(pl *Player) {
+				if pl.IsFail() {
 					yg.Over = true
-					break loop
 				}
-			} else {
-				yg.Over = true
+			})
+			if yg.Over {
 				break loop
 			}
 		}

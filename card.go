@@ -146,6 +146,11 @@ func (ca *Card) SetSummoner(c *Player) {
 	ca.Dispatch(Change)
 }
 
+// 恢复召唤者
+func (ca *Card) RecoverSummoner() {
+	ca.summoner = ca.GetOwner()
+}
+
 // 获得所有者
 func (ca *Card) GetOwner() *Player {
 	return ca.owner
