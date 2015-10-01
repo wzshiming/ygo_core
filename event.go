@@ -66,8 +66,8 @@ func (ca *Card) registerNormal() {
 	// 失效
 	ca.AddEvent(Disabled, func() {
 		ca.UnregisterGlobalListen()
-		pl := ca.GetSummoner()
-		pl.MsgPub("{self}失效", Arg{"self": ca.ToUint()})
+		//pl := ca.GetSummoner()
+		//pl.MsgPub("{self}失效", Arg{"self": ca.ToUint()})
 		ca.isValid = false
 	})
 
@@ -93,6 +93,7 @@ func (ca *Card) registerNormal() {
 	ca.AddEvent(Use1, func() {
 		ca.Dispatch(Onset)
 	})
+
 	e := func() {
 		ca.Dispatch(Disabled)
 	}
@@ -100,8 +101,8 @@ func (ca *Card) registerNormal() {
 	if ca.IsMonster() {
 		ca.AddEvent(InGrave, e)
 		ca.AddEvent(InRemoved, e)
-		ca.registerMonster()
 		ca.AddEvent(InSzone, e)
+		ca.registerMonster()
 		ca.AddEvent(InMzone, func() {
 			ca.AddEvent(InHand, e)
 			ca.AddEvent(InDeck, e)
@@ -129,21 +130,22 @@ func (ca *Card) registerMagicAndTrap() {
 			}
 		},
 	})
+}
+
+// 注册一张魔法卡
+func (ca *Card) registerMagic(e interface{}, only bool) {
 	ca.RegisterPay(func(s string) {
-		if s != UseMagic && s != UseTrap {
+		if s != UseMagic {
 			return
 		}
 		ca.SetFaceUp()
 		pl := ca.GetSummoner()
 		pl.MsgPub("发动{self}!", Arg{"self": ca.ToUint()})
 	})
-}
-
-func (ca *Card) registerMagic(f interface{}, only bool) {
 	ca.AddEvent(Onset, func() {
 		ca.Dispatch(UseMagic)
 	})
-	ca.AddEvent(Effect0, f)
+	ca.AddEvent(Effect0, e)
 	ca.AddEvent(UseMagic, func() {
 		pl := ca.GetSummoner()
 		if ca.IsValid() {
@@ -158,35 +160,47 @@ func (ca *Card) registerMagic(f interface{}, only bool) {
 	})
 }
 
-// 注册一张通常魔法卡手动失效
-func (ca *Card) RegisterUnordinaryMagic(f interface{}) {
-	ca.registerMagic(f, false)
+// 注册一张不通常魔法卡
+func (ca *Card) RegisterUnordinaryMagic(e interface{}) {
+	ca.registerMagic(e, false)
 }
 
 // 注册一张通常魔法卡
-func (ca *Card) RegisterOrdinaryMagic(f interface{}) {
-	ca.registerMagic(f, true)
+func (ca *Card) RegisterOrdinaryMagic(e interface{}) {
+	ca.registerMagic(e, true)
+}
+
+// 卡牌注册一个事件触发器 如果触发则发送给另一个事件
+func (ca *Card) registerIgnitionSelector(event string, e interface{}, toevent string) {
+	ca.RegisterGlobalListen(event, e)
+	ca.OnlyOnce(Trigger, func() {
+		//注意 发动触发的事件时注销全部事件监听
+		//不然 发动一张 神之宣告 会把自己破坏掉
+		ca.UnregisterGlobalListen()
+
+		ca.Dispatch(toevent)
+	}, toevent)
 }
 
 // 触发选择器
-func (ca *Card) RegisterIgnitionSelector(event string, f interface{}) {
-	ca.RegisterGlobalListen(event, f)
-	ca.AddEvent(Trigger, func() {
-		ca.UnregisterGlobalListen()
-		ca.Dispatch(Chain)
-	}, event, f)
+func (ca *Card) RegisterIgnitionSelector(event string, e interface{}) {
+	ca.registerIgnitionSelector(event, e, Chain)
 }
 
-// 注册一个通常的陷阱卡下个回合才能发动的效果
+// 注册一张陷阱卡
 func (ca *Card) registerTrap(event string, e interface{}, only bool) {
+	ca.RegisterPay(func(s string) {
+		if s != UseTrap {
+			return
+		}
+		ca.SetFaceUp()
+		pl := ca.GetSummoner()
+		pl.MsgPub("发动{self}!", Arg{"self": ca.ToUint()})
+	})
 	ca.AddEvent(InSzone, func() {
 		pl := ca.GetSummoner()
 		pl.OnlyOnce(RoundEnd, func() {
-			ca.RegisterGlobalListen(event, e)
-			ca.AddEvent(Trigger, func() {
-				ca.UnregisterGlobalListen()
-				ca.Dispatch(UseTrap)
-			}, event, e)
+			ca.registerIgnitionSelector(event, e, UseTrap)
 		}, ca, event, e)
 	}, event, e)
 	ca.AddEvent(UseTrap, func() {
@@ -203,34 +217,34 @@ func (ca *Card) registerTrap(event string, e interface{}, only bool) {
 	})
 }
 
-// 注册一张不正常的陷阱卡 效果
+// 注册一张不通常的陷阱卡
 func (ca *Card) RegisterUnordinaryTrap(event string, e interface{}) {
 	ca.registerTrap(event, e, false)
 }
 
-// 注册一张通常的陷阱卡 效果
+// 注册一张通常的陷阱卡
 func (ca *Card) RegisterOrdinaryTrap(event string, e interface{}) {
 	ca.registerTrap(event, e, true)
 }
 
-// 推送卡牌能连锁
-func (ca *Card) PushChain(f interface{}) {
+// 推送卡牌使之能连锁 玩家可以选择这张卡发动效果
+func (ca *Card) PushChain(e interface{}) {
 	yg := ca.GetSummoner().Game()
 	yg.AddEvent(Chain, ca)
 	ca.EmptyEvent(Chain)
-	ca.AddEvent(Chain, f)
+	ca.AddEvent(Chain, e)
 }
 
-// 注册全局效果监听 直到收到 失效Disabled
+// 注册全局效果监听 直到注销
 func (ca *Card) RegisterGlobalListen(event string, e interface{}) {
 	yg := ca.GetSummoner().Game()
 	yg.AddEvent(event, e, ca)
 	ca.OnlyOnce(UnregisterGlobalListen, func() {
 		yg.RemoveEvent(event, e, ca)
-	}, e, event)
+	}, event, e)
 }
 
-// 注册全局效果监听 直到收到 失效Disabled
+// 注销全局效果监听
 func (ca *Card) UnregisterGlobalListen() {
 	ca.Dispatch(UnregisterGlobalListen)
 }
@@ -271,18 +285,16 @@ func (ca *Card) RegisterEquipMagic(a Action, f1 interface{}, f2 interface{}) {
 	ca.AddEvent(Effect2, f2)
 }
 
-//func (ca *Card) RegisterPlaceMagic(f interface{}) {
-//	ca.registerMagic()
-//}
-
 func (ca *Card) RegisterPay(f interface{}) {
 	ca.AddEvent(Pay, f)
 }
 
+// 注册翻转效果
 func (ca *Card) RegisterFlip(f interface{}) {
 	ca.AddEvent(Flip, f)
 }
 
+// 注册融合怪兽的融合材料
 func (ca *Card) RegisterFusionMonster(names ...string) {
 	h := map[string]int{}
 	for _, v := range names {
@@ -333,6 +345,7 @@ func (ca *Card) RegisterFusionMonster(names ...string) {
 	})
 }
 
+// 注册一张怪兽卡
 func (ca *Card) registerMonster() {
 
 	// 定义怪兽手牌默认事件是召唤
@@ -543,6 +556,7 @@ func (ca *Card) registerMonster() {
 	})
 }
 
+// 怪兽效果 全场怪兽区域 类似光环效果 全场增幅
 func (ca *Card) RegisterAllMzoneHalo(f interface{}) {
 	ca.AddEvent(Effect0, f)
 	e0 := func(c *Card) bool {
@@ -559,7 +573,8 @@ func (ca *Card) RegisterAllMzoneHalo(f interface{}) {
 	ca.AddEvent(FaceUp, e)
 }
 
-func (ca *Card) RegisterMzoneArea(f0 interface{}, f1 interface{}) {
+// 怪兽效果 己方区域数量 进出事件
+func (ca *Card) registerArea(area ll_type, f0 interface{}, f1 interface{}) {
 	ca.AddEvent(Effect0, f0)
 	ca.AddEvent(Effect1, f1)
 	e0 := func(c *Card) bool {
@@ -573,48 +588,23 @@ func (ca *Card) RegisterMzoneArea(f0 interface{}, f1 interface{}) {
 	e := func() {
 		pl := ca.GetSummoner()
 		pl.Mzone.ForEach(e0)
-		ca.RegisterGlobalListen(InMzone, e0)
-		ca.RegisterGlobalListen(OutMzone, e1)
+		ca.RegisterGlobalListen(In+string(area), e0)
+		ca.RegisterGlobalListen(Out+string(area), e1)
 	}
 	ca.AddEvent(FaceUp, e)
 }
 
+// 己方怪兽区域 进出事件
+func (ca *Card) RegisterMzoneArea(f0 interface{}, f1 interface{}) {
+	ca.registerArea(LL_Mzone, f0, f1)
+}
+
+// 己方手牌 进出事件
 func (ca *Card) RegisterHandArea(f0 interface{}, f1 interface{}) {
-	ca.AddEvent(Effect0, f0)
-	ca.AddEvent(Effect1, f1)
-	e0 := func(c *Card) bool {
-		ca.Dispatch(Effect0, c)
-		return true
-	}
-	e1 := func(c *Card) bool {
-		ca.Dispatch(Effect1, c)
-		return true
-	}
-	e := func() {
-		pl := ca.GetSummoner()
-		pl.Hand.ForEach(e0)
-		ca.RegisterGlobalListen(InHand, e0)
-		ca.RegisterGlobalListen(OutHand, e1)
-	}
-	ca.AddEvent(FaceUp, e)
+	ca.registerArea(LL_Hand, f0, f1)
 }
 
+// 己方墓地 进出事件
 func (ca *Card) RegisterGraveArea(f0 interface{}, f1 interface{}) {
-	ca.AddEvent(Effect0, f0)
-	ca.AddEvent(Effect1, f1)
-	e0 := func(c *Card) bool {
-		ca.Dispatch(Effect0, c)
-		return true
-	}
-	e1 := func(c *Card) bool {
-		ca.Dispatch(Effect1, c)
-		return true
-	}
-	e := func() {
-		pl := ca.GetSummoner()
-		pl.Hand.ForEach(e0)
-		ca.RegisterGlobalListen(InGrave, e0)
-		ca.RegisterGlobalListen(OutGrave, e1)
-	}
-	ca.AddEvent(FaceUp, e)
+	ca.registerArea(LL_Grave, f0, f1)
 }

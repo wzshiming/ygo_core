@@ -116,7 +116,6 @@ func (cp *Cards) Remove(index int) (c *Card) {
 func (cp *Cards) PickedForUniq(uniq uint) (c *Card) {
 	for k, v := range *cp {
 		if v.ToUint() == uniq {
-			v.place = nil
 			return cp.Remove(k)
 		}
 	}
