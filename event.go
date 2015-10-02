@@ -173,9 +173,12 @@ func (ca *Card) RegisterOrdinaryMagic(e interface{}) {
 // 卡牌注册一个事件触发器 如果触发则发送给另一个事件
 func (ca *Card) registerIgnitionSelector(event string, e interface{}, toevent string) {
 	ca.RegisterGlobalListen(event, e)
-	ca.OnlyOnce(Trigger, func() {
-		//注意 发动触发的事件时注销全部事件监听
-		//不然 发动一张 神之宣告 会把自己破坏掉
+
+	// 不能换成 onlyone 否则就无法多次注册触发器
+	ca.AddEvent(Trigger, func() {
+
+		// 注意 发动触发的事件时注销全部事件监听
+		// 不然 发动一张 神之宣告 会把自己破坏掉
 		ca.UnregisterGlobalListen()
 
 		ca.Dispatch(toevent)
