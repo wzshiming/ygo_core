@@ -515,22 +515,24 @@ func (ca *Card) registerMonster() {
 				c.Dispatch(Flip)
 			}
 		},
+		Deduct: func(tar *Player, i int) {
+			tar.ChangeHp(i)
+		},
 		// 战斗判定
 		DamageStep: func(c *Card) {
 			pl := ca.GetSummoner()
 			if c != nil {
 				tar := c.GetSummoner()
 				pl.MsgPub("{self}攻击了{rival}！", Arg{"self": ca.ToUint(), "rival": c.ToUint()})
+				c.Dispatch(BearAttack, ca)
 				if c.IsAttack() {
 					t := ca.GetAttack() - c.GetAttack()
 					if t > 0 {
 						c.Dispatch(DestroyBeBattle, ca)
-						tar.ChangeHp(-t)
-						c.Dispatch(Deduct, pl)
+						c.Dispatch(Deduct, pl, -t)
 					} else if t < 0 {
 						ca.Dispatch(DestroyBeBattle, c)
-						pl.ChangeHp(t)
-						ca.Dispatch(Deduct, tar)
+						ca.Dispatch(Deduct, tar, t)
 					} else {
 						c.Dispatch(DestroyBeBattle, ca)
 						ca.Dispatch(DestroyBeBattle, c)
@@ -540,16 +542,14 @@ func (ca *Card) registerMonster() {
 					if t > 0 {
 						c.Dispatch(DestroyBeBattle, ca)
 					} else if t < 0 {
-						pl.ChangeHp(t)
-						ca.Dispatch(Deduct, tar)
+						ca.Dispatch(Deduct, tar, t)
 					}
 				}
 				ca.Dispatch(Fought, c)
 				c.Dispatch(Fought, ca)
 			} else {
 				tar := pl.GetTarget()
-				tar.ChangeHp(-ca.GetAttack())
-				ca.Dispatch(Deduct, tar)
+				ca.Dispatch(Deduct, tar, -ca.GetAttack())
 				pl.MsgPub("{self}直接攻击了{rival}！", Arg{"self": ca.ToUint()})
 			}
 

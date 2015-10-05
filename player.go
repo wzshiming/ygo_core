@@ -47,6 +47,7 @@ type Player struct {
 
 	// 其他的
 	lastSummonRound int // 最后召唤回合
+
 	// 是否失败
 	fail bool
 }
@@ -113,6 +114,7 @@ func NewPlayer(yg *YGO) *Player {
 	pl.AddEvent(BP, pl.battle)
 	pl.AddEvent(EP, pl.end)
 
+	pl.AddEvent(ChangeHP, pl.changeHp)
 	return pl
 }
 
@@ -438,8 +440,10 @@ func (pl *Player) GetHp() int {
 }
 
 func (pl *Player) ChangeHp(i int) {
-	pl.Dispatch(HPChange, pl, i)
+	pl.Dispatch(ChangeHP, pl, i)
+}
 
+func (pl *Player) changeHp(i int) {
 	if i < 0 {
 		pl.MsgPub("{self}受到{num}基本分伤害！", Arg{"num": -i})
 	} else if i > 0 {

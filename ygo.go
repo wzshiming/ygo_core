@@ -94,7 +94,7 @@ func (yg *YGO) Chain(eventName string, ca *Card, pl *Player, args []interface{})
 	})
 	if cs.Len() > 0 || yg.both[eventName] {
 		pl.Chain(eventName, ca, cs, args)
-		if yg.both[eventName] && ca.IsValid() {
+		if ca.IsValid() {
 			pl.GetTarget().Chain(eventName, ca, cs, args)
 		}
 	}

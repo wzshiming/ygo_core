@@ -22,7 +22,7 @@ const (
 	Pay        = "Pay"        // 支付代价
 	Draw       = "Draw"       // 每次抽排
 	DrawNum    = "DrawNum"    // 每抽一张牌
-	HPChange   = "HPChange"   // 生命值改变
+	ChangeHP   = "ChangeHP"   // 生命值改变
 
 	Use1 = "Use1" // 用户按钮1
 	Use2 = "Use2" // 用户按钮2
@@ -43,10 +43,11 @@ const (
 	// 怪兽事件
 	Flip       = "Flip"       // 反转
 	Expression = "Expression" // 改变表示形式
-	Deduct     = "Deduct"     // 直接攻击玩家造成伤害
+	Deduct     = "Deduct"     // 对玩家造成伤害
 	Fought     = "Fought"     // 战斗步骤结束对双方怪兽发出
 	Expres     = "Expres"     // 表示形式改变
-	FaceUp     = "FaceUp"     // 表侧表示
+	FaceUp     = "FaceUp"     // 表侧表示  召唤 特殊召唤 翻转 翻转召唤
+	BearAttack = "BearAttack" // 在伤害计算前向被攻击的怪兽发出
 
 	// 卡牌事件
 	InDeck     = In + string(LL_Deck)     // 进入卡组
@@ -67,6 +68,8 @@ const (
 	OutField   = Out + string(LL_Field)   // 离开场地
 
 	Change = "Change" // 卡牌属性发生变化时
+
+	BearDestroy = "BearDestroy" // 卡牌被破坏时向被破坏的卡牌发出
 
 	// 多种进墓地和除外形式
 	Removed         = "Removed"         // 移除

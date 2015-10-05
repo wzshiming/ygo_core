@@ -730,7 +730,7 @@ func (ca *Card) RaceIsDinosaur() bool {
 }
 
 //鱼族
-func (ca *Card) RaceIsFRaceIsh() bool {
+func (ca *Card) RaceIsFish() bool {
 	return ca.original.Lr == LR_Fish
 }
 
