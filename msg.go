@@ -1,4 +1,4 @@
-package ygo_cord
+package ygo_core
 
 type MsgCode struct {
 	Uniq   uint

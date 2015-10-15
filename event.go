@@ -1,17 +1,13 @@
-package ygo_cord
+package ygo_core
 
 func (ca *Card) Init() {
 	ca.Empty()
 	ca.original = *ca.baseOriginal
-	//ca.effects = []*Card{}
-	//ca.summoner = ca.owner
 	ca.isValid = true
 	ca.SetNotDirect()
 	ca.RecoverSummoner()
-	//	ca.le = LE
 	ca.registerNormal()
 	ca.baseOriginal.Initialize.Call(ca)
-
 }
 
 func (ca *Card) registerNormal() {
@@ -561,53 +557,25 @@ func (ca *Card) registerMonster() {
 
 // 怪兽效果 全场怪兽区域 类似光环效果 全场增幅
 func (ca *Card) RegisterAllMzoneHalo(f interface{}) {
-	ca.AddEvent(Effect0, f)
-	e0 := func(c *Card) bool {
-		ca.Dispatch(Effect0, c)
-		return true
-	}
-	e := func() {
-		pl := ca.GetSummoner()
-		tar := pl.GetTarget()
-		cs := NewCards(tar.Mzone, pl.Mzone)
-		cs.ForEach(e0)
-		ca.RegisterGlobalListen(InMzone, e0)
-	}
-	ca.AddEvent(FaceUp, e)
+	ca.AddEvent(FaceUp, ca.EffectAllMzoneHalo(f))
 }
 
 // 怪兽效果 己方区域数量 进出事件
-func (ca *Card) registerArea(area ll_type, f0 interface{}, f1 interface{}) {
-	ca.AddEvent(Effect0, f0)
-	ca.AddEvent(Effect1, f1)
-	e0 := func(c *Card) bool {
-		ca.Dispatch(Effect0, c)
-		return true
-	}
-	e1 := func(c *Card) bool {
-		ca.Dispatch(Effect1, c)
-		return true
-	}
-	e := func() {
-		pl := ca.GetSummoner()
-		pl.Mzone.ForEach(e0)
-		ca.RegisterGlobalListen(In+string(area), e0)
-		ca.RegisterGlobalListen(Out+string(area), e1)
-	}
-	ca.AddEvent(FaceUp, e)
+func (ca *Card) registerAccessArea(area ll_type, f0 interface{}, f1 interface{}) {
+	ca.AddEvent(FaceUp, ca.EffectAccessArea(area, f0, f1))
 }
 
 // 己方怪兽区域 进出事件
-func (ca *Card) RegisterMzoneArea(f0 interface{}, f1 interface{}) {
-	ca.registerArea(LL_Mzone, f0, f1)
+func (ca *Card) RegisterMzoneAccessArea(f0 interface{}, f1 interface{}) {
+	ca.registerAccessArea(LL_Mzone, f0, f1)
 }
 
 // 己方手牌 进出事件
-func (ca *Card) RegisterHandArea(f0 interface{}, f1 interface{}) {
-	ca.registerArea(LL_Hand, f0, f1)
+func (ca *Card) RegisterHandAccessArea(f0 interface{}, f1 interface{}) {
+	ca.registerAccessArea(LL_Hand, f0, f1)
 }
 
 // 己方墓地 进出事件
-func (ca *Card) RegisterGraveArea(f0 interface{}, f1 interface{}) {
-	ca.registerArea(LL_Grave, f0, f1)
+func (ca *Card) RegisterGraveAccessArea(f0 interface{}, f1 interface{}) {
+	ca.registerAccessArea(LL_Grave, f0, f1)
 }

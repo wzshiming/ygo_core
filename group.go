@@ -1,4 +1,4 @@
-package ygo_cord
+package ygo_core
 
 import (
 	"github.com/wzshiming/dispatcher"

@@ -1,4 +1,4 @@
-package ygo_cord
+package ygo_core
 
 // 卡牌类型 Card Types
 type lc_type uint32
