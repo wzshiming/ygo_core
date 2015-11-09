@@ -66,7 +66,6 @@ func NewPlayer(yg *YGO) *Player {
 	}
 	var pr uint
 	pl.MsgChan = NewMsgChan(func(m MsgCode) bool {
-		//rego.INFO(m)
 
 		if m.Uniq != 0 {
 			if ca := pl.Game().GetCard(m.Uniq); ca != nil {
@@ -85,6 +84,8 @@ func NewPlayer(yg *YGO) *Player {
 					return true
 				}
 			}
+		} else if m.Method == LI_Defeat {
+			pl.Fail()
 		} else {
 			return true
 		}
@@ -158,7 +159,9 @@ func (pl *Player) MsgPub(fmts string, a Arg) {
 
 func (pl *Player) Fail() {
 	pl.fail = true
-	//panic("Fail")
+	//pl.Empty()
+	pl.AddCode(0, uint(LP_End))
+	pl.AddCode(0, uint(LP_End))
 }
 
 func (pl *Player) IsFail() bool {
@@ -184,12 +187,12 @@ func (pl *Player) Chain(eventName string, ca *Card, cs *Cards, a []interface{}) 
 	defer func() {
 		pl.Phases = t
 		pl.PassTime = r
-		pl.CallAll(flashPhases(pl))
+		pl.CallAll(flashStep(pl))
 	}()
 	yg := pl.Game()
 	pl.Phases = LP_Chain
 	pl.ResetReplyTime()
-	pl.CallAll(flashPhases(pl))
+	pl.CallAll(flashStep(pl))
 
 	for {
 		if pl.IsOutTime() {
@@ -258,31 +261,30 @@ func (pl *Player) round() (err error) {
 		}
 	}()
 	pl.RoundSize++
-	pl.CallAll(flagName(pl))
 	pl.Dispatch(RoundBegin)
 
 	pl.Phases = LP_Draw
-	pl.CallAll(flashPhases(pl))
+	pl.CallAll(flashStep(pl))
 	pl.Dispatch(DP, LP_Draw)
 
 	pl.Phases = LP_Standby
-	pl.CallAll(flashPhases(pl))
+	pl.CallAll(flashStep(pl))
 	pl.Dispatch(SP, LP_Standby)
 
 	pl.Phases = LP_Main1
-	pl.CallAll(flashPhases(pl))
+	pl.CallAll(flashStep(pl))
 	pl.Dispatch(MP, LP_Main1)
 
 	pl.Phases = LP_Battle
-	pl.CallAll(flashPhases(pl))
+	pl.CallAll(flashStep(pl))
 	pl.Dispatch(BP, LP_Battle)
 
 	pl.Phases = LP_Main2
-	pl.CallAll(flashPhases(pl))
+	pl.CallAll(flashStep(pl))
 	pl.Dispatch(MP, LP_Main2)
 
 	pl.Phases = LP_End
-	pl.CallAll(flashPhases(pl))
+	pl.CallAll(flashStep(pl))
 	pl.Dispatch(EP, LP_End)
 	pl.Dispatch(RoundEnd)
 	return
@@ -426,12 +428,12 @@ func (pl *Player) InitPlayer(u int) {
 	pl.CallAll(setPortrait(c, u))
 }
 
-func (pl *Player) initDeck(a []uint, b []uint) {
+func (pl *Player) initDeck(a []uint) {
 	if pl.Deck.Len() > 0 {
 		return
 	}
-	pl.Game().CardVer.Deck(pl.Deck, pl, a)
-	pl.Game().CardVer.Deck(pl.Extra, pl, b)
+
+	pl.Game().CardVer.Deck(pl, a)
 	pl.ActionShuffle()
 }
 
@@ -527,7 +529,7 @@ func (pl *Player) SetNotCanSummon() {
 }
 
 func (pl *Player) SelectWill() (p MsgCode) {
-	pl.CallAll(flashPhases(pl))
+	pl.CallAll(flashStep(pl))
 	for {
 		select {
 		case <-time.After(time.Second):
@@ -571,9 +573,9 @@ func (pl *Player) SelectForPopup(ci ...interface{}) *Card {
 
 func (pl *Player) selectForWarn(ci ...interface{}) (c *Card, u uint) {
 	css := NewCards(ci...)
-	pl.Call(trigg(css))
+	pl.Call(setTrigg(css))
 	defer func() {
-		pl.Call(trigg(nil))
+		pl.Call(setTrigg(nil))
 	}()
 	if c, u = pl.Select(); c != nil {
 		if css.IsExistCard(c) {

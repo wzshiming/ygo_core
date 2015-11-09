@@ -200,6 +200,10 @@ func (ca *Card) Is(a ...interface{}) bool {
 	return true
 }
 
+func (ca *Card) IsExtra() bool {
+	return !(ca.IsMagicAndTrap() || ca.IsOrdinaryMonster() || ca.IsEffectMonster())
+}
+
 // 获得类型
 func (ca *Card) GetType() lc_type {
 	return ca.original.Lc

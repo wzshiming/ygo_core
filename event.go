@@ -306,7 +306,7 @@ func (ca *Card) RegisterFusionMonster(names ...string) {
 			}
 			pl := ca.GetSummoner()
 			se := NewCards()
-			cs := NewCards(&pl.Hand.Cards, &pl.Mzone.Cards)
+			cs := NewCards(pl.Hand, pl.Mzone)
 			for k, v := range h {
 				is := cs.Find(func(c *Card) bool {
 					return c.GetName() == k
@@ -556,26 +556,26 @@ func (ca *Card) registerMonster() {
 }
 
 // 怪兽效果 全场怪兽区域 类似光环效果 全场增幅
-func (ca *Card) RegisterAllMzoneHalo(f interface{}) {
-	ca.AddEvent(FaceUp, ca.EffectAllMzoneHalo(f))
+func (ca *Card) RegisterAllMzoneHalo(a Action, f0 interface{}, f1 interface{}) {
+	ca.AddEvent(FaceUp, ca.EffectMzoneHalo(a, f0, f1))
 }
 
 // 怪兽效果 己方区域数量 进出事件
-func (ca *Card) registerAccessArea(area ll_type, f0 interface{}, f1 interface{}) {
-	ca.AddEvent(FaceUp, ca.EffectAccessArea(area, f0, f1))
+func (ca *Card) registerAccessArea(area ll_type, a Action, f0 interface{}, f1 interface{}) {
+	ca.AddEvent(FaceUp, ca.EffectAccessArea(area, a, f0, f1))
 }
 
 // 己方怪兽区域 进出事件
-func (ca *Card) RegisterMzoneAccessArea(f0 interface{}, f1 interface{}) {
-	ca.registerAccessArea(LL_Mzone, f0, f1)
+func (ca *Card) RegisterMzoneAccessArea(a Action, f0 interface{}, f1 interface{}) {
+	ca.registerAccessArea(LL_Mzone, a, f0, f1)
 }
 
 // 己方手牌 进出事件
-func (ca *Card) RegisterHandAccessArea(f0 interface{}, f1 interface{}) {
-	ca.registerAccessArea(LL_Hand, f0, f1)
+func (ca *Card) RegisterHandAccessArea(a Action, f0 interface{}, f1 interface{}) {
+	ca.registerAccessArea(LL_Hand, a, f0, f1)
 }
 
 // 己方墓地 进出事件
-func (ca *Card) RegisterGraveAccessArea(f0 interface{}, f1 interface{}) {
-	ca.registerAccessArea(LL_Grave, f0, f1)
+func (ca *Card) RegisterGraveAccessArea(a Action, f0 interface{}, f1 interface{}) {
+	ca.registerAccessArea(LL_Grave, a, f0, f1)
 }

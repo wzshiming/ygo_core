@@ -55,11 +55,11 @@ type Call struct {
 	Args   interface{} `json:"args"`
 }
 
-func remind(t uint) (string, interface{}) {
-	return "remind", map[string]interface{}{
-		"uniq": t,
-	}
-}
+//func remind(t uint) (string, interface{}) {
+//	return "remind", map[string]interface{}{
+//		"uniq": t,
+//	}
+//}
 
 func touch(t uint, x, y, z int) (string, interface{}) {
 	return "touch", map[string]interface{}{
@@ -91,6 +91,7 @@ func message(format string, a Arg) (string, interface{}) {
 	}
 }
 
+// 弹出来给用户选择 一般只对卡组用
 func setPick(cs *Cards, pl *Player) (string, interface{}) {
 	if cs != nil {
 		return "setPick", map[string]interface{}{
@@ -102,7 +103,18 @@ func setPick(cs *Cards, pl *Player) (string, interface{}) {
 		"master": pl.Index,
 		"uniqs":  []int{},
 	}
+}
 
+// 不弹出来给用户选择
+func setTrigg(cs *Cards) (string, interface{}) {
+	if cs != nil {
+		return "setTrigg", map[string]interface{}{
+			"uniqs": cs.Uniqs(),
+		}
+	}
+	return "setTrigg", map[string]interface{}{
+		"uniqs": []int{},
+	}
 }
 
 func changeHp(t *Card, hp int) (string, interface{}) {
@@ -140,31 +152,22 @@ func moveCard(t *Card, pos ll_type) (string, interface{}) {
 	}
 }
 
-func flashPhases(pl *Player) (string, interface{}) {
+func flashStep(pl *Player) (string, interface{}) {
 	return "flagStep", map[string]interface{}{
-		"step": pl.Phases,
-		"wait": pl.PassTime,
-	}
-}
-
-func setFace(a Arg) (string, interface{}) {
-	return "setFace", a
-}
-
-func flagName(pl *Player) (string, interface{}) {
-	return "flagName", map[string]interface{}{
+		"step":   pl.Phases,
+		"wait":   pl.PassTime,
+		"master": pl.Index,
 		"round":  pl.GetRound(),
-		"player": pl.Index,
 	}
 }
 
-func trigg(cs *Cards) (string, interface{}) {
-	if cs != nil {
-		return "trigg", map[string]interface{}{
-			"uniqs": cs.Uniqs(),
-		}
-	}
-	return "trigg", map[string]interface{}{
-		"uniqs": []int{},
-	}
-}
+//func setFace(a Arg) (string, interface{}) {
+//	return "setFace", a
+//}
+
+//func flagName(pl *Player) (string, interface{}) {
+//	return "flagName", map[string]interface{}{
+//		"round":  pl.GetRound(),
+//		"player": pl.Index,
+//	}
+//}

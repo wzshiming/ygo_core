@@ -186,7 +186,9 @@ func (yg *YGO) Loop() {
 	for _, v := range yg.round {
 		var deck proto.Deck
 		yg.Players[v].Session.Data.Get("deck", &deck)
-		yg.Players[v].initDeck(deck.GetMain(), deck.GetExtra())
+
+		yg.Players[v].initDeck(deck.GetMain())
+
 	}
 
 	nap(20) // 手牌初始化

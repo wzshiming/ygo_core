@@ -7,6 +7,16 @@ import (
 	//"rego"
 )
 
+type CardRets struct {
+	List []CardRet `json:"list"`
+}
+
+type CardRet struct {
+	Id    uint `json:"id,string"`
+	Limit uint `json:"limit,string"`
+	State uint `json:"state,string"`
+}
+
 type CardVersion struct {
 	List     map[uint]*CardOriginal
 	nameList map[string]*CardOriginal
@@ -30,6 +40,38 @@ func (cv *CardVersion) Keys() (c []uint) {
 func (cv *CardVersion) Get(id uint) *CardOriginal {
 	return cv.List[id]
 }
+func (cv *CardVersion) Filter(name string, i ...interface{}) (cr CardRets) {
+	// weiwan daixu
+
+	for k, _ := range cv.FindForOriginal(name, true) {
+		cr.List = append(cr.List, CardRet{
+			Id:    k,
+			Limit: 3,
+			State: 1,
+		})
+	}
+	return
+}
+
+func (cv *CardVersion) FindForOriginal(name string, val bool) (co map[uint]*CardOriginal) {
+	co = make(map[uint]*CardOriginal)
+	reg := regexp.MustCompile(fmt.Sprintf("~([^(~~)]*%s[^(~~)]*)~", name))
+	al := reg.FindAllStringSubmatch(cv.nameReg, -1)
+	for _, v := range al {
+		if len(v) == 2 {
+			if d := cv.nameList[v[1]]; d != nil {
+				if val {
+					if d.IsValid {
+						co[d.Id] = d
+					}
+				} else {
+					co[d.Id] = d
+				}
+			}
+		}
+	}
+	return
+}
 
 func (cv *CardVersion) Find(name string, val bool) (c []uint) {
 	reg := regexp.MustCompile(fmt.Sprintf("~([^(~~)]*%s[^(~~)]*)~", name))
@@ -44,7 +86,6 @@ func (cv *CardVersion) Find(name string, val bool) (c []uint) {
 				} else {
 					c = append(c, d.Id)
 				}
-
 			}
 		}
 	}
@@ -66,7 +107,9 @@ func (cv *CardVersion) Register(co *CardOriginal) error {
 	cv.nameList[co.Name] = co
 
 	//os.MkdirAll("./img", 0666)
-	//exec.Command("cp", fmt.Sprintf("../web/static/cards/img/%v.jpg", co.Id), fmt.Sprintf("./img/%v.jpg", co.Id)).Start()
+	//os.MkdirAll("./info", 0666)
+	//exec.Command("cp", fmt.Sprintf("../static/web/static/cards/img/%v.jpg", co.Id), fmt.Sprintf("./img/%v.jpg", co.Id)).Start()
+	//exec.Command("cp", fmt.Sprintf("../static/web/static/cards/i18n/zh-CN/%v.json", co.Id), fmt.Sprintf("./info/%v.json", co.Id)).Start()
 
 	return nil
 }
@@ -82,12 +125,17 @@ func (cv *CardVersion) Sum(cv2 *CardVersion) *CardVersion {
 	return rcv
 }
 
-func (cv *CardVersion) Deck(cp *Group, player *Player, deck []uint) {
+func (cv *CardVersion) Deck(player *Player, deck []uint) {
 	for _, v := range deck {
 		t := cv.Get(v)
 		if t != nil {
 			c := t.Make(player)
-			cp.EndPush(c)
+			if c.IsExtra() {
+				player.Extra.EndPush(c)
+			} else {
+				player.Deck.EndPush(c)
+			}
+
 		}
 	}
 }
