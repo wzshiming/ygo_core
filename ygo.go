@@ -94,7 +94,7 @@ func (yg *YGO) Chain(eventName string, ca *Card, pl *Player, args []interface{})
 	})
 	if cs.Len() > 0 || yg.both[eventName] {
 		pl.Chain(eventName, ca, cs, args)
-		if ca.IsValid() {
+		if ca != nil && ca.IsValid() {
 			pl.GetTarget().Chain(eventName, ca, cs, args)
 		}
 	}
@@ -248,8 +248,11 @@ loop:
 		}
 	}
 
+	yg.GameOver()
+	return
+}
+
+func (yg *YGO) GameOver() {
 	yg.CallAll("over", nil)
 	yg.Current.MsgPub("游戏结束", nil)
-	return
-
 }

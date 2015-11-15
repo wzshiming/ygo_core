@@ -55,18 +55,16 @@ type Call struct {
 	Args   interface{} `json:"args"`
 }
 
-//func remind(t uint) (string, interface{}) {
-//	return "remind", map[string]interface{}{
-//		"uniq": t,
-//	}
-//}
 
-func touch(t uint, x, y, z int) (string, interface{}) {
-	return "touch", map[string]interface{}{
+func onTouch(t uint) (string, interface{}) {
+	return "onTouch", map[string]interface{}{
 		"uniq": t,
-		"x":    x,
-		"y":    y,
-		"z":    z,
+	}
+}
+
+func offTouch(t uint) (string, interface{}) {
+	return "offTouch", map[string]interface{}{
+		"uniq": t,
 	}
 }
 
@@ -91,31 +89,20 @@ func message(format string, a Arg) (string, interface{}) {
 	}
 }
 
-// 弹出来给用户选择 一般只对卡组用
+//给用户选择
 func setPick(cs *Cards, pl *Player) (string, interface{}) {
-	if cs != nil {
-		return "setPick", map[string]interface{}{
-			"master": pl.Index,
-			"uniqs":  cs.Uniqs(),
-		}
-	}
 	return "setPick", map[string]interface{}{
 		"master": pl.Index,
-		"uniqs":  []int{},
+		"uniqs":  cs.Uniqs(),
 	}
 }
 
-// 不弹出来给用户选择
-func setTrigg(cs *Cards) (string, interface{}) {
-	if cs != nil {
-		return "setTrigg", map[string]interface{}{
-			"uniqs": cs.Uniqs(),
-		}
-	}
-	return "setTrigg", map[string]interface{}{
-		"uniqs": []int{},
+func cloPick( pl *Player) (string, interface{}) {
+	return "cloPick", map[string]interface{}{
+		"master": pl.Index,
 	}
 }
+
 
 func changeHp(t *Card, hp int) (string, interface{}) {
 	return "changeHp", map[string]interface{}{
@@ -160,14 +147,3 @@ func flashStep(pl *Player) (string, interface{}) {
 		"round":  pl.GetRound(),
 	}
 }
-
-//func setFace(a Arg) (string, interface{}) {
-//	return "setFace", a
-//}
-
-//func flagName(pl *Player) (string, interface{}) {
-//	return "flagName", map[string]interface{}{
-//		"round":  pl.GetRound(),
-//		"player": pl.Index,
-//	}
-//}

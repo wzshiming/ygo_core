@@ -48,6 +48,8 @@ type Player struct {
 	// 其他的
 	lastSummonRound int // 最后召唤回合
 
+	// 回合中
+	rounding bool
 	// 是否失败
 	fail bool
 }
@@ -71,15 +73,15 @@ func NewPlayer(yg *YGO) *Player {
 			if ca := pl.Game().GetCard(m.Uniq); ca != nil {
 				if m.Method == uint(LI_Over) {
 					if pr != 0 {
-						pl.Game().CallAll(touch(pr, 1, 1, 1))
+						pl.Game().CallAll(offTouch(pr))
 						pr = 0
 					}
-					pl.GetTarget().Call(touch(m.Uniq, -1, -100, 100))
+					pl.GetTarget().Call(onTouch(m.Uniq))
 				} else if m.Method == uint(LI_Out) {
 					if pr == m.Uniq {
 						pr = 0
 					}
-					pl.Game().CallAll(touch(m.Uniq, 1, 1, 1))
+					pl.Game().CallAll(offTouch(m.Uniq))
 				} else {
 					return true
 				}
@@ -103,10 +105,12 @@ func NewPlayer(yg *YGO) *Player {
 	pl.AddEvent(RoundBegin, func() {
 		pl.MsgPub("{self}进入第{round}回合", Arg{"round": pl.GetRound()})
 		pl.SetCanSummon()
+		pl.rounding = true
 	})
 	pl.AddEvent(RoundEnd, func() {
 		pl.MsgPub("{self}结束第{round}回合", Arg{"round": pl.GetRound()})
 		pl.SetCanSummon()
+		pl.rounding = false
 	})
 
 	pl.AddEvent(DP, pl.draw)
@@ -187,7 +191,9 @@ func (pl *Player) Chain(eventName string, ca *Card, cs *Cards, a []interface{}) 
 	defer func() {
 		pl.Phases = t
 		pl.PassTime = r
-		pl.CallAll(flashStep(pl))
+		if pl.rounding {
+			pl.CallAll(flashStep(pl))
+		}
 	}()
 	yg := pl.Game()
 	pl.Phases = LP_Chain
@@ -553,18 +559,11 @@ func (pl *Player) Select() (*Card, uint) {
 }
 func (pl *Player) selectForPopup(ci ...interface{}) (c *Card, u uint) {
 	css := NewCards(ci...)
-	pl.Call(setPick(css, pl))
 	css.ForEach(func(c *Card) bool {
 		c.Peek()
 		return true
 	})
-	defer pl.Call(setPick(nil, pl))
-	if c, u = pl.Select(); c != nil {
-		if css.IsExistCard(c) {
-			return
-		}
-	}
-	return
+	return pl.selectForWarn(ci...)
 }
 func (pl *Player) SelectForPopup(ci ...interface{}) *Card {
 	c, _ := pl.selectForPopup(ci...)
@@ -573,10 +572,8 @@ func (pl *Player) SelectForPopup(ci ...interface{}) *Card {
 
 func (pl *Player) selectForWarn(ci ...interface{}) (c *Card, u uint) {
 	css := NewCards(ci...)
-	pl.Call(setTrigg(css))
-	defer func() {
-		pl.Call(setTrigg(nil))
-	}()
+	pl.Call(setPick(css,pl))
+	defer pl.Call(cloPick(pl))
 	if c, u = pl.Select(); c != nil {
 		if css.IsExistCard(c) {
 			return
