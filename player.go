@@ -103,12 +103,12 @@ func NewPlayer(yg *YGO) *Player {
 	pl.Field = NewGroup(pl, LL_Field)
 	pl.Portrait = NewGroup(pl, LL_Portrait)
 	pl.AddEvent(RoundBegin, func() {
-		pl.MsgPub("{self}进入第{round}回合", Arg{"round": pl.GetRound()})
+		pl.MsgPub(" {self} 进入第 {round} 回合", Arg{"round": pl.GetRound()})
 		pl.SetCanSummon()
 		pl.rounding = true
 	})
 	pl.AddEvent(RoundEnd, func() {
-		pl.MsgPub("{self}结束第{round}回合", Arg{"round": pl.GetRound()})
+		pl.MsgPub(" {self} 结束第 {round} 回合", Arg{"round": pl.GetRound()})
 		pl.SetCanSummon()
 		pl.rounding = false
 	})
@@ -218,9 +218,9 @@ func (pl *Player) Chain(eventName string, ca *Card, cs *Cards, a []interface{}) 
 		}
 
 		if ca != nil {
-			pl.MsgPub("{rival}的{event}事件等待{self}连锁", Arg{"rival": ca.ToUint(), "event": eventName})
+			pl.MsgPub(" {rival} 的 {event} 事件等待 {self} 连锁", Arg{"rival": ca.ToUint(), "event": eventName})
 		} else {
-			pl.MsgPub("{event}事件等待{self}连锁", Arg{"event": eventName})
+			pl.MsgPub(" {event} 事件等待 {self} 连锁", Arg{"event": eventName})
 		}
 		c, u := pl.selectForWarn(cs0)
 		if c == nil {
@@ -231,15 +231,15 @@ func (pl *Player) Chain(eventName string, ca *Card, cs *Cards, a []interface{}) 
 		}
 
 		if ca == nil {
-			pl.MsgPub("{self}触发{event}事件", Arg{"self": c.ToUint(), "event": eventName})
+			pl.MsgPub(" {self} 触发 {event} 事件", Arg{"self": c.ToUint(), "event": eventName})
 			c.Dispatch(Trigger, a...)
 		} else if ca.Priority() > c.Priority() {
 			ca.OnlyOnce(eventName, func() {
-				pl.MsgPub("{self}稍后连锁{rival}的{event}事件", Arg{"self": c.ToUint(), "rival": ca.ToUint(), "event": eventName})
+				pl.MsgPub(" {self} 稍后连锁 {rival} 的 {event} 事件", Arg{"self": c.ToUint(), "rival": ca.ToUint(), "event": eventName})
 				c.Dispatch(Trigger, a...)
 			}, c)
 		} else {
-			pl.MsgPub("{self}优先连锁{rival}的{event}事件", Arg{"self": c.ToUint(), "rival": ca.ToUint(), "event": eventName})
+			pl.MsgPub(" {self} 优先连锁 {rival} 的 {event} 事件", Arg{"self": c.ToUint(), "rival": ca.ToUint(), "event": eventName})
 			c.Dispatch(Trigger, a...)
 		}
 
@@ -410,7 +410,7 @@ func (pl *Player) battle(lp lp_type) {
 func (pl *Player) end(lp lp_type) {
 	if i := pl.Hand.Len() - pl.MaxSdi; i > 0 {
 		pl.ResetReplyTime()
-		pl.Msg("请{self}选择丢弃的手牌", nil)
+		pl.Msg("请 {self} 选择丢弃的手牌", nil)
 		for k := 0; k != i; k++ {
 			ca := pl.SelectForWarn(pl.Hand)
 			if ca == nil {
@@ -453,18 +453,15 @@ func (pl *Player) ChangeHp(i int) {
 
 func (pl *Player) changeHp(i int) {
 	if i < 0 {
-		pl.MsgPub("{self}受到{num}基本分伤害！", Arg{"num": -i})
+		pl.MsgPub(" {self} 受到 {num} 基本分伤害！", Arg{"num": -i})
 	} else if i > 0 {
-		pl.MsgPub("{self}受到{num}基本分回复！", Arg{"num": i})
+		pl.MsgPub(" {self} 受到 {num} 基本分回复！", Arg{"num": i})
 	}
 	pl.Hp += i
 	if pl.Hp < 0 {
 		pl.Fail()
 	}
-	pl.Portrait.ForEach(func(c *Card) bool {
-		pl.CallAll(changeHp(c, pl.Hp))
-		return true
-	})
+	pl.CallAll(changeHp(pl, pl.Hp))
 
 }
 

@@ -156,9 +156,17 @@ func (yg *YGO) Loop() {
 		yg.Players[v].Index = k
 		yg.Players[v].game = yg
 		yg.Players[v].RoundSize = 0
-		var name string
-		yg.Players[v].Session.Data.Get("username", &name)
-		yg.Players[v].Name = "玩家 " + name
+		
+		var id uint 
+		yg.Players[v].Session.Data.Get("userid", &id)
+		if(id == 0){
+			yg.Players[v].Name = "Guest";
+		}else {
+			var name string
+			yg.Players[v].Session.Data.Get("username", &name)
+			yg.Players[v].Name = name
+		}
+		
 	}
 
 	nap(1) // 客户端初始化
@@ -212,7 +220,7 @@ func (yg *YGO) Loop() {
 	nap(10) // 游戏开始
 
 	pl := yg.GetPlayerForIndex(0)
-	pl.MsgPub("游戏开始，{self}先手！", nil)
+	pl.MsgPub("游戏开始， {self} 先手！", nil)
 	if pl.Portrait.Len() == 1 {
 		ca := pl.Portrait.Get(0)
 		ca.RegisterGlobalListen(BP, func(tar *Player) {

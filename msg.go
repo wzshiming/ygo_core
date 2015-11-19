@@ -104,9 +104,9 @@ func cloPick( pl *Player) (string, interface{}) {
 }
 
 
-func changeHp(t *Card, hp int) (string, interface{}) {
+func changeHp(pl *Player, hp int) (string, interface{}) {
 	return "changeHp", map[string]interface{}{
-		"uniq": t.ToUint(),
+		"master": pl.Index,
 		"hp":   hp,
 	}
 }

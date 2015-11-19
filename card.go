@@ -364,8 +364,7 @@ func (ca *Card) SetAttack(i int) {
 	}
 	ca.original.Attack = i
 	ca.Dispatch(Change)
-	pl := ca.GetSummoner()
-	pl.CallAll(setCardFace(ca, Arg{"攻击力": i}))
+	ca.ShowInfo()
 }
 
 // 获得基础防御
@@ -385,8 +384,7 @@ func (ca *Card) SetDefense(i int) {
 	}
 	ca.original.Defense = i
 	ca.Dispatch(Change)
-	pl := ca.GetSummoner()
-	pl.CallAll(setCardFace(ca, Arg{"防御力": i}))
+	ca.ShowInfo()
 }
 
 // 获得基础等级
