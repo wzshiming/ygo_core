@@ -156,17 +156,17 @@ func (yg *YGO) Loop() {
 		yg.Players[v].Index = k
 		yg.Players[v].game = yg
 		yg.Players[v].RoundSize = 0
-		
-		var id uint 
+
+		var id uint
 		yg.Players[v].Session.Data.Get("userid", &id)
-		if(id == 0){
-			yg.Players[v].Name = "Guest";
-		}else {
+		if id == 0 {
+			yg.Players[v].Name = "Guest"
+		} else {
 			var name string
 			yg.Players[v].Session.Data.Get("username", &name)
 			yg.Players[v].Name = name
 		}
-		
+
 	}
 
 	nap(1) // 客户端初始化
@@ -220,7 +220,7 @@ func (yg *YGO) Loop() {
 	nap(10) // 游戏开始
 
 	pl := yg.GetPlayerForIndex(0)
-	pl.MsgPub("游戏开始， {self} 先手！", nil)
+	pl.MsgPub("msg.001", nil)
 	if pl.Portrait.Len() == 1 {
 		ca := pl.Portrait.Get(0)
 		ca.RegisterGlobalListen(BP, func(tar *Player) {
@@ -236,7 +236,7 @@ func (yg *YGO) Loop() {
 
 	yg.Room.LeaveEvent(func(sess *agent.Session) {
 		pl := yg.Players[sess.ToUint()]
-		yg.Current.MsgPub("{rival}退出游戏", Arg{"rival": pl.Name})
+		yg.Current.MsgPub("msg.009", Arg{"rival": pl.Name})
 		pl.Fail()
 	})
 loop:
@@ -262,5 +262,5 @@ loop:
 
 func (yg *YGO) GameOver() {
 	yg.CallAll("over", nil)
-	yg.Current.MsgPub("游戏结束", nil)
+	yg.Current.MsgPub("msg.000", nil)
 }

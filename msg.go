@@ -55,7 +55,6 @@ type Call struct {
 	Args   interface{} `json:"args"`
 }
 
-
 func onTouch(t uint) (string, interface{}) {
 	return "onTouch", map[string]interface{}{
 		"uniq": t,
@@ -84,8 +83,8 @@ func setFront(t *Card) (string, interface{}) {
 
 func message(format string, a Arg) (string, interface{}) {
 	return "message", map[string]interface{}{
-		"message": format,
-		"params":  a,
+		"format": format,
+		"params": a,
 	}
 }
 
@@ -97,17 +96,16 @@ func setPick(cs *Cards, pl *Player) (string, interface{}) {
 	}
 }
 
-func cloPick( pl *Player) (string, interface{}) {
+func cloPick(pl *Player) (string, interface{}) {
 	return "cloPick", map[string]interface{}{
 		"master": pl.Index,
 	}
 }
 
-
 func changeHp(pl *Player, hp int) (string, interface{}) {
 	return "changeHp", map[string]interface{}{
 		"master": pl.Index,
-		"hp":   hp,
+		"hp":     hp,
 	}
 }
 

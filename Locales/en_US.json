@@ -1,0 +1,29 @@
+{
+    "mone": "Stay tuned."
+    , "main.title": "Game King"
+    , "main.subtitle": "beta"
+    , "menu": {
+        "home": "Home"
+    }
+    , "auth": {
+        "nologin": "You do not have login"
+        , "islogin": "You have login"
+        , "inlogin": "This account has been elsewhere login"
+        , "pwdshort": "Password is too short."
+        , "newpwdshort": "The new password is too short."
+        , "userexists": "The user already exists."
+        , "pwderr": "The user does not exist or the password wrong."
+    }
+, "chan": {
+"nologin": "You do not have login"
+, "hasjoined": "You have been in the match."
+, "nojoined": "You are not matching"
+, "joinfail": "Join Failed"
+, "deckerr": "You did not default card group or does not comply with the rules."
+}
+, "Conninte": "network connection is interrupted \n 1. Please check your network connection \n 2. server maintenance, please try again later."
+, "InGame": "the number of the game's Office"
+, "InMatc": "Matching the number of"
+, "InHall": "The number of people in the hall."
+
+}

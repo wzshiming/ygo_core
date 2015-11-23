@@ -1,6 +1,7 @@
 package ygo_core
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/wzshiming/base"
@@ -103,12 +104,12 @@ func NewPlayer(yg *YGO) *Player {
 	pl.Field = NewGroup(pl, LL_Field)
 	pl.Portrait = NewGroup(pl, LL_Portrait)
 	pl.AddEvent(RoundBegin, func() {
-		pl.MsgPub(" {self} 进入第 {round} 回合", Arg{"round": pl.GetRound()})
+		pl.MsgPub("msg.002", Arg{"round": fmt.Sprint(pl.GetRound())})
 		pl.SetCanSummon()
 		pl.rounding = true
 	})
 	pl.AddEvent(RoundEnd, func() {
-		pl.MsgPub(" {self} 结束第 {round} 回合", Arg{"round": pl.GetRound()})
+		pl.MsgPub("msg.003", Arg{"round": fmt.Sprint(pl.GetRound())})
 		pl.SetCanSummon()
 		pl.rounding = false
 	})
@@ -218,9 +219,9 @@ func (pl *Player) Chain(eventName string, ca *Card, cs *Cards, a []interface{}) 
 		}
 
 		if ca != nil {
-			pl.MsgPub(" {rival} 的 {event} 事件等待 {self} 连锁", Arg{"rival": ca.ToUint(), "event": eventName})
+			pl.MsgPub("msg.004", Arg{"rival": ca.ToUint(), "event": eventName})
 		} else {
-			pl.MsgPub(" {event} 事件等待 {self} 连锁", Arg{"event": eventName})
+			pl.MsgPub("msg.005", Arg{"event": eventName})
 		}
 		c, u := pl.selectForWarn(cs0)
 		if c == nil {
@@ -231,15 +232,15 @@ func (pl *Player) Chain(eventName string, ca *Card, cs *Cards, a []interface{}) 
 		}
 
 		if ca == nil {
-			pl.MsgPub(" {self} 触发 {event} 事件", Arg{"self": c.ToUint(), "event": eventName})
+			pl.MsgPub("msg.006", Arg{"self": c.ToUint(), "event": eventName})
 			c.Dispatch(Trigger, a...)
 		} else if ca.Priority() > c.Priority() {
 			ca.OnlyOnce(eventName, func() {
-				pl.MsgPub(" {self} 稍后连锁 {rival} 的 {event} 事件", Arg{"self": c.ToUint(), "rival": ca.ToUint(), "event": eventName})
+				pl.MsgPub("msg.007", Arg{"self": c.ToUint(), "rival": ca.ToUint(), "event": eventName})
 				c.Dispatch(Trigger, a...)
 			}, c)
 		} else {
-			pl.MsgPub(" {self} 优先连锁 {rival} 的 {event} 事件", Arg{"self": c.ToUint(), "rival": ca.ToUint(), "event": eventName})
+			pl.MsgPub("msg.008", Arg{"self": c.ToUint(), "rival": ca.ToUint(), "event": eventName})
 			c.Dispatch(Trigger, a...)
 		}
 
@@ -357,7 +358,7 @@ func (pl *Player) main(lp lp_type) {
 			ca.Dispatch(Onset)
 		} else {
 			Debug(ca)
-			pl.Msg("非法目标", nil)
+			pl.Msg("101", nil)
 		}
 	}
 }
@@ -392,7 +393,7 @@ func (pl *Player) battle(lp lp_type) {
 		}
 
 		tar := pl.GetTarget()
-		pl.Msg("选择要攻击的目标", nil)
+		pl.Msg("102", nil)
 		if tar.Mzone.Len() != 0 {
 			if c, _ := pl.selectForWarn(tar.Mzone, tar.Portrait, func(c0 *Card) bool {
 				return !(c0.IsPortrait() && !ca.IsCanDirect())
@@ -410,7 +411,7 @@ func (pl *Player) battle(lp lp_type) {
 func (pl *Player) end(lp lp_type) {
 	if i := pl.Hand.Len() - pl.MaxSdi; i > 0 {
 		pl.ResetReplyTime()
-		pl.Msg("请 {self} 选择丢弃的手牌", nil)
+		pl.Msg("103", nil)
 		for k := 0; k != i; k++ {
 			ca := pl.SelectForWarn(pl.Hand)
 			if ca == nil {
@@ -453,9 +454,9 @@ func (pl *Player) ChangeHp(i int) {
 
 func (pl *Player) changeHp(i int) {
 	if i < 0 {
-		pl.MsgPub(" {self} 受到 {num} 基本分伤害！", Arg{"num": -i})
+		pl.MsgPub("msg.201", Arg{"num": fmt.Sprint(-i)})
 	} else if i > 0 {
-		pl.MsgPub(" {self} 受到 {num} 基本分回复！", Arg{"num": i})
+		pl.MsgPub("msg.202", Arg{"num": fmt.Sprint(i)})
 	}
 	pl.Hp += i
 	if pl.Hp < 0 {
@@ -569,7 +570,7 @@ func (pl *Player) SelectForPopup(ci ...interface{}) *Card {
 
 func (pl *Player) selectForWarn(ci ...interface{}) (c *Card, u uint) {
 	css := NewCards(ci...)
-	pl.Call(setPick(css,pl))
+	pl.Call(setPick(css, pl))
 	defer pl.Call(cloPick(pl))
 	if c, u = pl.Select(); c != nil {
 		if css.IsExistCard(c) {

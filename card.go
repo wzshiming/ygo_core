@@ -80,7 +80,7 @@ func (ca *Card) SetNotDirect() {
 
 func (ca *Card) ShowInfo() {
 	pl := ca.GetSummoner()
-	pl.CallAll(setCardFace(ca, Arg{"攻击力": ca.GetAttack(), "防御力": ca.GetDefense()}))
+	pl.CallAll(setCardFace(ca, Arg{"ATK": ca.GetAttack(), "DEF": ca.GetDefense()}))
 }
 
 func (ca *Card) HideInfo() {
