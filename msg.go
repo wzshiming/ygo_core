@@ -1,25 +1,20 @@
 package ygo_core
 
-type MsgCode struct {
-	Uniq   uint
-	Method uint
-}
-
 type MsgChan struct {
-	secondary chan MsgCode
-	msgfunc   func(MsgCode) bool
+	secondary chan AskCode
+	msgfunc   func(AskCode) bool
 }
 
-func NewMsgChan(m func(MsgCode) bool) MsgChan {
+func NewMsgChan(m func(AskCode) bool) MsgChan {
 	mc := MsgChan{
-		secondary: make(chan MsgCode, 16),
+		secondary: make(chan AskCode, 16),
 		msgfunc:   m,
 	}
 	return mc
 }
 
 func (mc *MsgChan) AddCode(uniq, method uint) {
-	c := MsgCode{
+	c := AskCode{
 		Uniq:   uniq,
 		Method: method,
 	}
@@ -35,7 +30,7 @@ func (mc *MsgChan) AddCode(uniq, method uint) {
 	}
 }
 
-func (mc *MsgChan) GetCode() <-chan MsgCode {
+func (mc *MsgChan) GetCode() <-chan AskCode {
 	mc.ClearCode()
 	return mc.secondary
 }

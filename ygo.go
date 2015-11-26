@@ -173,7 +173,7 @@ func (yg *YGO) Loop() {
 	gi := proto.GameInitResponse{}
 	for _, v := range yg.round {
 		pi := proto.PlayerInit{
-			Hp:   yg.Players[v].Hp,
+			//Hp:   yg.Players[v].Hp,
 			Name: yg.Players[v].Name,
 		}
 		gi.Users = append(gi.Users, pi)

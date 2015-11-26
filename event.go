@@ -358,7 +358,6 @@ func (ca *Card) registerMonster() {
 			return
 		}
 		ca.SetFaceUpAttack()
-		ca.ShowInfo()
 	})
 
 	// 翻转 设置卡片正面朝上
@@ -367,7 +366,6 @@ func (ca *Card) registerMonster() {
 			return
 		}
 		ca.SetFaceUp()
-		ca.ShowInfo()
 	})
 
 	// 特殊召唤
@@ -384,6 +382,10 @@ func (ca *Card) registerMonster() {
 	ca.AddEvent(Flip, e0)
 	ca.AddEvent(Summon, e0)
 	ca.AddEvent(SummonSpecial, e0)
+
+	// 正面朝上时和改变属性时显示属性
+	ca.AddEvent(Change, ca.ShowInfo)
+	ca.AddEvent(FaceUp, ca.ShowInfo)
 	// 手牌
 	ca.Range(InHand, OutHand, Arg{
 		// 代价
@@ -435,11 +437,6 @@ func (ca *Card) registerMonster() {
 		},
 	})
 
-	// 离开 怪兽区 隐藏怪兽卡的 属性 放到客户端
-	//	ca.AddEvent(OutMzone, func() {
-	//		ca.HideInfo()
-	//	})
-
 	ca.Range(InMzone, OutMzone, Arg{
 		// 被解放
 		Freedom: func(c *Card, i *int) {
@@ -450,6 +447,7 @@ func (ca *Card) registerMonster() {
 			ca.ToGrave()
 			pl.MsgPub("msg.048", Arg{"self": ca.ToUint()})
 		},
+		// 改变表示形式
 		Expression: func() {
 			pl := ca.GetSummoner()
 			if ca.IsCanChange() {

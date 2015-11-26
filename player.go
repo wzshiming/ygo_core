@@ -68,7 +68,7 @@ func NewPlayer(yg *YGO) *Player {
 		ReplyTime: time.Second * 20,
 	}
 	var pr uint
-	pl.MsgChan = NewMsgChan(func(m MsgCode) bool {
+	pl.MsgChan = NewMsgChan(func(m AskCode) bool {
 
 		if m.Uniq != 0 {
 			if ca := pl.Game().GetCard(m.Uniq); ca != nil {
@@ -223,12 +223,13 @@ func (pl *Player) Chain(eventName string, ca *Card, cs *Cards, a []interface{}) 
 		} else {
 			pl.MsgPub("msg.005", Arg{"event": eventName})
 		}
-		c, u := pl.selectForWarn(cs0)
+		c, _ := pl.selectForWarn(cs0)
 		if c == nil {
-			if u == LI_No {
-				break
-			}
-			continue
+			break
+			//			if u == LI_No {
+			//				break
+			//			}
+			//			continue
 		}
 
 		if ca == nil {
@@ -532,7 +533,7 @@ func (pl *Player) SetNotCanSummon() {
 	pl.lastSummonRound = pl.GetRound()
 }
 
-func (pl *Player) SelectWill() (p MsgCode) {
+func (pl *Player) SelectWill() (p AskCode) {
 	pl.CallAll(flashStep(pl))
 	for {
 		select {
@@ -557,6 +558,10 @@ func (pl *Player) Select() (*Card, uint) {
 }
 func (pl *Player) selectForPopup(ci ...interface{}) (c *Card, u uint) {
 	css := NewCards(ci...)
+	//	if css.Len() == 0 {
+	//		nap(10)
+	//		return
+	//	}
 	css.ForEach(func(c *Card) bool {
 		c.Peek()
 		return true
@@ -570,6 +575,10 @@ func (pl *Player) SelectForPopup(ci ...interface{}) *Card {
 
 func (pl *Player) selectForWarn(ci ...interface{}) (c *Card, u uint) {
 	css := NewCards(ci...)
+	//	if css.Len() == 0 {
+	//		nap(5)
+	//		return
+	//	}
 	pl.Call(setPick(css, pl))
 	defer pl.Call(cloPick(pl))
 	if c, u = pl.Select(); c != nil {
