@@ -2,13 +2,13 @@ package ygo_core
 
 const (
 	//标识符
-	Pre                    = "Rre"                    // 之前
-	Suf                    = "Suf"                    // 之后
-	Bear                   = "Bear"                   // 被
-	In                     = "In"                     // 进入
-	Out                    = "Out"                    // 离开
-	Trigger                = "Trigger"                // 诱发
-	UnregisterGlobalListen = "UnregisterGlobalListen" //注销全局事件监听
+	Pre                       = "Rre"                    // 之前
+	Suf                       = "Suf"                    // 之后
+	Bear                      = "Bear"                   // 被
+	In                        = "In"                     // 进入
+	Out                       = "Out"                    // 离开
+	Trigger                   = "Trigger"                // 诱发
+	UnregisterAllGlobalListen = "UnregisterGlobalListen" //注销全局事件监听
 
 	// 玩家事件
 	RoundBegin = "RoundBegin" // 回合开始之前

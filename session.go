@@ -5,35 +5,63 @@ type AskCode struct {
 	Method uint
 }
 
-type CallCode struct {
-	reply  interface{}
-	method string
+type card struct {
+	index uint
+	size  uint
 }
 
-type SessionInterface interface {
-	Call(method string, reply interface{}) error
-	Ask(method int, uniq int)
+type deck struct {
+	main []card
+	side []card
 }
 
-type session struct {
-	ask  chan AskCode
-	call chan CallCode
-	cb   func(CallCode)
+func NewDeck() *deck {
+	return &deck{}
 }
 
-func NewSession(cb func(CallCode)) SessionInterface {
-	s := &session{
-		ask:  make(chan AskCode, 16),
-		call: make(chan CallCode, 16),
-		cb:   cb,
-	}
-	return s
+func (d *deck) MainAddCard(index uint, size uint) {
+	d.main = append(d.main, card{
+		index: index,
+		size:  size,
+	})
+	return
 }
 
-func (s *session) Ask(method int, uniq int) {
-
+func (d *deck) SideAddCard(index uint, size uint) {
+	d.side = append(d.side, card{
+		index: index,
+		size:  size,
+	})
+	return
 }
 
-func (s *session) Call(method string, reply interface{}) error {
-	return nil
-}
+//type session struct {
+//	//ask  chan AskCode
+//	sess *agent.Session
+//	name string
+//	deck *deck
+//	id   uint
+//}
+
+//func NewSession(id uint, name string, deck *deck, sess *agent.Session) *session {
+//	s := &session{
+//		id: id,
+//		//ask:  make(chan AskCode, 16),
+//		sess: sess,
+//		name: name,
+//		deck: deck,
+//	}
+//	return s
+//}
+
+//func (s *session) Ask(method uint, uniq uint) {
+//	s.ask <- AskCode{
+//		Method: method,
+//		Uniq:   uniq,
+//	}
+//	return
+//}
+
+//func (s *session) getAsk(method uint, uniq uint) <-chan AskCode {
+//	return s.ask
+//}

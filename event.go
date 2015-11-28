@@ -61,7 +61,7 @@ func (ca *Card) registerNormal() {
 
 	// 失效
 	ca.AddEvent(Disabled, func() {
-		ca.UnregisterGlobalListen()
+		ca.UnregisterAllGlobalListen()
 		//pl := ca.GetSummoner()
 		//pl.MsgPub("msg.016", Arg{"self": ca.ToUint()})
 		ca.isValid = false
@@ -175,7 +175,7 @@ func (ca *Card) registerIgnitionSelector(event string, e interface{}, toevent st
 
 		// 注意 发动触发的事件时注销全部事件监听
 		// 不然 发动一张 神之宣告 会把自己破坏掉
-		ca.UnregisterGlobalListen()
+		ca.UnregisterAllGlobalListen()
 
 		ca.Dispatch(toevent)
 	}, toevent)
@@ -238,14 +238,20 @@ func (ca *Card) PushChain(e interface{}) {
 func (ca *Card) RegisterGlobalListen(event string, e interface{}) {
 	yg := ca.GetSummoner().Game()
 	yg.AddEvent(event, e, ca)
-	ca.OnlyOnce(UnregisterGlobalListen, func() {
+	ca.OnlyOnce(UnregisterAllGlobalListen, func() {
 		yg.RemoveEvent(event, e, ca)
 	}, event, e)
 }
 
 // 注销全局效果监听
-func (ca *Card) UnregisterGlobalListen() {
-	ca.Dispatch(UnregisterGlobalListen)
+func (ca *Card) UnregisterGlobalListen(event string, e interface{}) {
+	yg := ca.GetSummoner().Game()
+	yg.RemoveEvent(event, e, ca)
+}
+
+// 注销全部全局效果监听
+func (ca *Card) UnregisterAllGlobalListen() {
+	ca.Dispatch(UnregisterAllGlobalListen)
 }
 
 // 注册一个装备魔法卡  装备对象判断  装备上动作 装备下动作
@@ -254,7 +260,7 @@ func (ca *Card) RegisterEquipMagic(a Action, f1 interface{}, f2 interface{}) {
 		pl := ca.GetSummoner()
 		pl.MsgPub("msg.031", Arg{"self": ca.ToUint()})
 		tar := pl.GetTarget()
-		if c := pl.SelectForWarn(pl.Mzone, tar.Mzone, a); c != nil {
+		if c := pl.SelectForWarn(pl.Mzone(), tar.Mzone(), a); c != nil {
 
 			// 装备卡 离开场地时
 			ca.OnlyOnce(Disabled, func() {
@@ -306,7 +312,7 @@ func (ca *Card) RegisterFusionMonster(names ...string) {
 			}
 			pl := ca.GetSummoner()
 			se := NewCards()
-			cs := NewCards(pl.Hand, pl.Mzone)
+			cs := NewCards(pl.Hand(), pl.Mzone())
 			for k, v := range h {
 				is := cs.Find(func(c *Card) bool {
 					return c.GetName() == k
@@ -395,7 +401,7 @@ func (ca *Card) registerMonster() {
 			}
 
 			pl := ca.GetSummoner()
-			pl.ResetReplyTime()
+			pl.resetReplyTime()
 			i := 0
 			if ca.GetLevel() > 6 {
 				i += 2
@@ -406,7 +412,7 @@ func (ca *Card) registerMonster() {
 				pl.MsgPub("msg.044", Arg{"self": ca.ToUint(), "size": i})
 			}
 			for k := 0; k < i; {
-				if t := pl.SelectForWarn(pl.Mzone); t != nil {
+				if t := pl.SelectForWarn(pl.Mzone()); t != nil {
 					t.Dispatch(Freedom, ca, &k)
 				} else {
 					ca.StopOnce(s)
@@ -485,8 +491,10 @@ func (ca *Card) registerMonster() {
 		// 发出战斗宣言
 		Declaration: func(c *Card) {
 			pl := ca.GetSummoner()
+			pl.callAll(impact(ca, c))
 			if c != nil && c.IsPortrait() {
 				c = nil
+
 			}
 			if c != nil {
 				pl.MsgPub("msg.063", Arg{"self": ca.ToUint(), "rival": c.ToUint()})
@@ -517,6 +525,7 @@ func (ca *Card) registerMonster() {
 		DamageStep: func(c *Card) {
 			pl := ca.GetSummoner()
 			if c != nil {
+
 				tar := c.GetSummoner()
 				pl.MsgPub("msg.064", Arg{"self": ca.ToUint(), "rival": c.ToUint()})
 				c.Dispatch(BearAttack, ca)
@@ -552,29 +561,4 @@ func (ca *Card) registerMonster() {
 			ca.SetNotCanChange()
 		},
 	})
-}
-
-// 怪兽效果 全场怪兽区域 类似光环效果 全场增幅
-func (ca *Card) RegisterAllMzoneHalo(a Action, f0 interface{}, f1 interface{}) {
-	ca.AddEvent(FaceUp, ca.EffectMzoneHalo(a, f0, f1))
-}
-
-// 怪兽效果 己方区域数量 进出事件
-func (ca *Card) registerAccessArea(area ll_type, a Action, f0 interface{}, f1 interface{}) {
-	ca.AddEvent(FaceUp, ca.EffectAccessArea(area, a, f0, f1))
-}
-
-// 己方怪兽区域 进出事件
-func (ca *Card) RegisterMzoneAccessArea(a Action, f0 interface{}, f1 interface{}) {
-	ca.registerAccessArea(LL_Mzone, a, f0, f1)
-}
-
-// 己方手牌 进出事件
-func (ca *Card) RegisterHandAccessArea(a Action, f0 interface{}, f1 interface{}) {
-	ca.registerAccessArea(LL_Hand, a, f0, f1)
-}
-
-// 己方墓地 进出事件
-func (ca *Card) RegisterGraveAccessArea(a Action, f0 interface{}, f1 interface{}) {
-	ca.registerAccessArea(LL_Grave, a, f0, f1)
 }

@@ -40,7 +40,7 @@ func (co *CardOriginal) Make(pl *Player) *Card {
 	}
 	c.InitUint()
 	c.Init()
-	pl.Game().RegisterCards(c)
+	pl.Game().registerCards(c)
 	return c
 }
 
@@ -63,9 +63,9 @@ type Card struct {
 
 func (ca *Card) Peek() {
 	pl := ca.GetSummoner()
-	pl.Call(setFront(ca))
-	pl.Call(exprCard(ca, LE_FaceUpAttack))
-	pl.GetTarget().Call(exprCard(ca, LE_FaceDownAttack))
+	pl.call(setFront(ca))
+	pl.call(exprCard(ca, LE_FaceUpAttack))
+	pl.GetTarget().call(exprCard(ca, LE_FaceDownAttack))
 }
 func (ca *Card) IsCanDirect() bool {
 	return ca.direct
@@ -80,12 +80,12 @@ func (ca *Card) SetNotDirect() {
 
 func (ca *Card) ShowInfo() {
 	pl := ca.GetSummoner()
-	pl.CallAll(setCardFace(ca, Arg{"ATK": ca.GetAttack(), "DEF": ca.GetDefense()}))
+	pl.callAll(setCardFace(ca, Arg{"ATK": ca.GetAttack(), "DEF": ca.GetDefense()}))
 }
 
 func (ca *Card) HideInfo() {
 	pl := ca.GetSummoner()
-	pl.CallAll(setCardFace(ca, Arg{}))
+	pl.callAll(setCardFace(ca, Arg{}))
 }
 
 func (ca *Card) IsValid() bool {
@@ -114,7 +114,7 @@ func (ca *Card) Dispatch(eventName string, args ...interface{}) {
 	if Pay != eventName && Chain != eventName {
 		ca.Events.Dispatch(Pay, eventName)
 		if ca.IsOpen(eventName) {
-			yg.Chain(eventName, ca, ca.GetSummoner(), args)
+			yg.chain(eventName, ca, ca.GetSummoner(), args)
 		}
 	}
 	ca.Events.Dispatch(eventName, args...)
@@ -442,9 +442,9 @@ func (ca *Card) setLE(l le_type) {
 	ca.le = l
 	pl := ca.GetSummoner()
 	pl.Dispatch(Expres, ca)
-	pl.CallAll(exprCard(ca, l))
+	pl.callAll(exprCard(ca, l))
 	if ca.IsFaceUp() && ca.GetId() != 0 {
-		pl.CallAll(setFront(ca))
+		pl.callAll(setFront(ca))
 	}
 }
 
@@ -537,52 +537,52 @@ func (ca *Card) Placed() {
 
 // 移动到墓地
 func (ca *Card) ToGrave() {
-	ca.GetOwner().Grave.EndPush(ca)
+	ca.GetOwner().Grave().EndPush(ca)
 }
 
 // 移动到除外
 func (ca *Card) ToRemoved() {
-	ca.GetOwner().Removed.EndPush(ca)
+	ca.GetOwner().Removed().EndPush(ca)
 }
 
 // 移动到手牌
 func (ca *Card) ToHand() {
-	ca.GetOwner().Hand.EndPush(ca)
+	ca.GetOwner().Hand().EndPush(ca)
 }
 
 // 移动到额外
 func (ca *Card) ToExtra() {
-	ca.GetOwner().Extra.EndPush(ca)
+	ca.GetOwner().Extra().EndPush(ca)
 }
 
 // 移动到怪兽
 func (ca *Card) ToMzone() {
 	pl := ca.GetSummoner()
-	if pl.Mzone.Len() >= 5 {
+	if pl.Mzone().Len() >= 5 {
 		ca.Dispatch(DestroyBeRule)
 	} else {
-		pl.Mzone.EndPush(ca)
+		pl.Mzone().EndPush(ca)
 	}
 }
 
 // 移动到魔法
 func (ca *Card) ToSzone() {
 	pl := ca.GetOwner()
-	if pl.Szone.Len() >= 5 {
+	if pl.Szone().Len() >= 5 {
 		ca.Dispatch(DestroyBeRule)
 	} else {
-		pl.Szone.EndPush(ca)
+		pl.Szone().EndPush(ca)
 	}
 }
 
 // 移动到卡组
 func (ca *Card) ToDeck() {
-	ca.GetOwner().Deck.EndPush(ca)
+	ca.GetOwner().Deck().EndPush(ca)
 }
 
 // 移动到场地
 func (ca *Card) ToField() {
-	f := ca.GetOwner().Field
+	f := ca.GetOwner().Field()
 	f.ForEach(func(c *Card) bool {
 		c.ToGrave()
 		return true

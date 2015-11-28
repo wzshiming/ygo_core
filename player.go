@@ -14,37 +14,39 @@ type Player struct {
 	dispatcher.Events
 	MsgChan
 	Name    string         // 用户名
-	Session *agent.Session // 会话
-	Phases  lp_type
+	Id      uint           //
+	Decks   *deck          //卡组数据
+	session *agent.Session // 会话
+	phases  lp_type
 
 	// 规则属性
-	Index     int           // 玩家索引
+	index     int           // 玩家索引
 	game      *YGO          // 属于游戏
-	OverTime  time.Duration // 允许超出的时间
-	WaitTime  time.Duration // 每次动作等待的时间
-	ReplyTime time.Duration // 回应等待的时间
-	PassTime  time.Duration // 经过的时间
+	overTime  time.Duration // 允许超出的时间
+	waitTime  time.Duration // 每次动作等待的时间
+	replyTime time.Duration // 回应等待的时间
+	passTime  time.Duration // 经过的时间
 	// 基础属性
-	Hp        int  // 生命值
-	Camp      int  // 阵营
-	RoundSize int  // 回合数
-	DrawSize  uint // 抽卡数
-	MaxHp     uint // 最大生命值
-	MaxSdi    int  // 最大手牌
+	hp        int  // 生命值
+	camp      int  // 阵营
+	roundSize int  // 回合数
+	drawSize  uint // 抽卡数
+	maxHp     uint // 最大生命值
+	maxSdi    int  // 最大手牌
 
 	// 卡牌区
-	Deck    *Group // 卡组 40 ~ 60
-	Hand    *Group // 手牌
-	Extra   *Group // 额外卡组 <= 15 融合怪物 同调怪物 超量怪物
-	Removed *Group // 排除卡
-	Grave   *Group // 墓地
-	Mzone   *Group // 怪物卡区 5
-	Szone   *Group // 魔法卡陷阱卡区 5
-	Field   *Group // 场地卡
-
+	//Deck 卡组 40 ~ 60
+	//Hand 手牌
+	//Extra 额外卡组 <= 15 融合怪物 同调怪物 超量怪物
+	//Removed 排除卡
+	//Grave 墓地
+	//Mzone 怪物卡区 5
+	//Szone 魔法卡陷阱卡区 5
+	//Field 场地卡
 	// 特殊区
-	Side     *Group // 副卡组 <= 15 不参与游戏
-	Portrait *Group // 玩家头像
+	//Side 副卡组 <= 15 不参与游戏
+	//Portrait 玩家头像
+	area map[ll_type]*Group
 
 	// 其他的
 	lastSummonRound int // 最后召唤回合
@@ -55,34 +57,34 @@ type Player struct {
 	fail bool
 }
 
-func NewPlayer(yg *YGO) *Player {
+func newPlayer(yg *YGO) *Player {
 	pl := &Player{
 		Events:    dispatcher.NewForkEvent(yg.GetFork()),
-		Camp:      1,
-		Hp:        0,
-		DrawSize:  1,
-		MaxHp:     ^uint(0),
-		MaxSdi:    6,
-		OverTime:  time.Second * 120,
-		WaitTime:  time.Second * 60,
-		ReplyTime: time.Second * 20,
+		camp:      1,
+		hp:        0,
+		drawSize:  1,
+		maxHp:     ^uint(0),
+		maxSdi:    6,
+		overTime:  time.Second * 120,
+		waitTime:  time.Second * 60,
+		replyTime: time.Second * 20,
 	}
 	var pr uint
 	pl.MsgChan = NewMsgChan(func(m AskCode) bool {
 
 		if m.Uniq != 0 {
-			if ca := pl.Game().GetCard(m.Uniq); ca != nil {
+			if ca := pl.Game().getCard(m.Uniq); ca != nil {
 				if m.Method == uint(LI_Over) {
 					if pr != 0 {
-						pl.Game().CallAll(offTouch(pr))
+						pl.Game().callAll(offTouch(pr))
 						pr = 0
 					}
-					pl.GetTarget().Call(onTouch(m.Uniq))
+					pl.GetTarget().call(onTouch(m.Uniq))
 				} else if m.Method == uint(LI_Out) {
 					if pr == m.Uniq {
 						pr = 0
 					}
-					pl.Game().CallAll(offTouch(m.Uniq))
+					pl.Game().callAll(offTouch(m.Uniq))
 				} else {
 					return true
 				}
@@ -94,15 +96,8 @@ func NewPlayer(yg *YGO) *Player {
 		}
 		return false
 	})
-	pl.Deck = NewGroup(pl, LL_Deck)
-	pl.Hand = NewGroup(pl, LL_Hand)
-	pl.Extra = NewGroup(pl, LL_Extra)
-	pl.Removed = NewGroup(pl, LL_Removed)
-	pl.Grave = NewGroup(pl, LL_Grave)
-	pl.Mzone = NewGroup(pl, LL_Mzone)
-	pl.Szone = NewGroup(pl, LL_Szone)
-	pl.Field = NewGroup(pl, LL_Field)
-	pl.Portrait = NewGroup(pl, LL_Portrait)
+	pl.area = map[ll_type]*Group{}
+
 	pl.AddEvent(RoundBegin, func() {
 		pl.MsgPub("msg.002", Arg{"round": fmt.Sprint(pl.GetRound())})
 		pl.SetCanSummon()
@@ -120,14 +115,56 @@ func NewPlayer(yg *YGO) *Player {
 	pl.AddEvent(BP, pl.battle)
 	pl.AddEvent(EP, pl.end)
 
-	pl.AddEvent(ChangeHP, pl.changeHp)
 	return pl
+}
+
+func (pl *Player) getArea(ll ll_type) *Group {
+	if pl.area[ll] == nil {
+		pl.area[ll] = NewGroup(pl, ll)
+	}
+	return pl.area[ll]
+}
+
+func (pl *Player) Deck() *Group {
+	return pl.getArea(LL_Deck)
+}
+
+func (pl *Player) Mzone() *Group {
+	return pl.getArea(LL_Mzone)
+}
+
+func (pl *Player) Szone() *Group {
+	return pl.getArea(LL_Szone)
+}
+
+func (pl *Player) Grave() *Group {
+	return pl.getArea(LL_Grave)
+}
+
+func (pl *Player) Removed() *Group {
+	return pl.getArea(LL_Removed)
+}
+
+func (pl *Player) Hand() *Group {
+	return pl.getArea(LL_Hand)
+}
+
+func (pl *Player) Field() *Group {
+	return pl.getArea(LL_Field)
+}
+
+func (pl *Player) Extra() *Group {
+	return pl.getArea(LL_Extra)
+}
+
+func (pl *Player) Portrait() *Group {
+	return pl.getArea(LL_Portrait)
 }
 
 func (pl *Player) Dispatch(eventName string, args ...interface{}) {
 	yg := pl.Game()
 	if pl.IsOpen(eventName) {
-		yg.Chain(eventName, nil, pl, append(args))
+		yg.chain(eventName, nil, pl, append(args))
 	}
 	pl.Events.Dispatch(eventName, args...)
 }
@@ -146,7 +183,7 @@ func (pl *Player) Msg(fmts string, a Arg) {
 	if a["rival"] == nil {
 		a["rival"] = pl.GetTarget().Name
 	}
-	pl.Call(message(fmts, a))
+	pl.call(message(fmts, a))
 }
 
 func (pl *Player) MsgPub(fmts string, a Arg) {
@@ -159,7 +196,7 @@ func (pl *Player) MsgPub(fmts string, a Arg) {
 	if a["rival"] == nil {
 		a["rival"] = pl.GetTarget().Name
 	}
-	pl.CallAll(message(fmts, a))
+	pl.callAll(message(fmts, a))
 }
 
 func (pl *Player) Fail() {
@@ -174,12 +211,12 @@ func (pl *Player) IsFail() bool {
 }
 
 func (pl *Player) ForEachPlayer(fun func(p *Player)) {
-	pl.Game().ForEachPlayer(fun)
+	pl.Game().forEachPlayer(fun)
 }
 
-func (pl *Player) Chain(eventName string, ca *Card, cs *Cards, a []interface{}) bool {
-	t := pl.Phases
-	r := pl.PassTime
+func (pl *Player) chain(eventName string, ca *Card, cs *Cards, a []interface{}) bool {
+	t := pl.phases
+	r := pl.passTime
 	defer func() {
 		if x := recover(); x != nil {
 			if _, ok := x.(string); ok {
@@ -190,19 +227,19 @@ func (pl *Player) Chain(eventName string, ca *Card, cs *Cards, a []interface{}) 
 		}
 	}()
 	defer func() {
-		pl.Phases = t
-		pl.PassTime = r
+		pl.phases = t
+		pl.passTime = r
 		if pl.rounding {
-			pl.CallAll(flashStep(pl))
+			pl.callAll(flashStep(pl))
 		}
 	}()
 	yg := pl.Game()
-	pl.Phases = LP_Chain
-	pl.ResetReplyTime()
-	pl.CallAll(flashStep(pl))
+	pl.phases = LP_Chain
+	pl.resetReplyTime()
+	pl.callAll(flashStep(pl))
 
 	for {
-		if pl.IsOutTime() {
+		if pl.isOutTime() {
 			break
 		}
 		cs0 := cs.Find(func(c *Card) bool {
@@ -210,7 +247,7 @@ func (pl *Player) Chain(eventName string, ca *Card, cs *Cards, a []interface{}) 
 		})
 
 		if cs0.Len() == 0 {
-			cs1 := pl.Szone.Find(func(c *Card) bool {
+			cs1 := pl.Szone().Find(func(c *Card) bool {
 				return c.IsFaceDown()
 			})
 			if cs1.Len() == 0 {
@@ -255,7 +292,7 @@ func (pl *Player) Chain(eventName string, ca *Card, cs *Cards, a []interface{}) 
 }
 
 func (pl *Player) GetRound() int {
-	return pl.RoundSize
+	return pl.roundSize
 }
 
 func (pl *Player) round() (err error) {
@@ -268,32 +305,33 @@ func (pl *Player) round() (err error) {
 			}
 		}
 	}()
-	pl.RoundSize++
+	pl.roundSize++
 	pl.Dispatch(RoundBegin)
 
-	pl.Phases = LP_Draw
-	pl.CallAll(flashStep(pl))
+	pl.phases = LP_Draw
+	pl.callAll(flashStep(pl))
 	pl.Dispatch(DP, LP_Draw)
 
-	pl.Phases = LP_Standby
-	pl.CallAll(flashStep(pl))
+	pl.phases = LP_Standby
+	pl.callAll(flashStep(pl))
 	pl.Dispatch(SP, LP_Standby)
 
-	pl.Phases = LP_Main1
-	pl.CallAll(flashStep(pl))
+	pl.phases = LP_Main1
+	pl.callAll(flashStep(pl))
 	pl.Dispatch(MP, LP_Main1)
 
-	pl.Phases = LP_Battle
-	pl.CallAll(flashStep(pl))
+	pl.phases = LP_Battle
+	pl.callAll(flashStep(pl))
 	pl.Dispatch(BP, LP_Battle)
 
-	pl.Phases = LP_Main2
-	pl.CallAll(flashStep(pl))
+	pl.phases = LP_Main2
+	pl.callAll(flashStep(pl))
 	pl.Dispatch(MP, LP_Main2)
 
-	pl.Phases = LP_End
-	pl.CallAll(flashStep(pl))
+	pl.phases = LP_End
+	pl.callAll(flashStep(pl))
 	pl.Dispatch(EP, LP_End)
+
 	pl.Dispatch(RoundEnd)
 	return
 }
@@ -313,15 +351,15 @@ func (pl *Player) main(lp lp_type) {
 		}
 	}()
 
-	pl.ResetWaitTime()
+	pl.resetWaitTime()
 	for {
-		ca, u := pl.selectForWarn(pl.Hand, pl.Mzone, pl.Szone, func(c *Card) bool {
+		ca, u := pl.selectForWarn(pl.Hand(), pl.Mzone(), pl.Szone(), func(c *Card) bool {
 			if c.IsInHand() && c.IsMonster() {
 				if !pl.IsCanSummon() {
 					return false
-				} else if c.GetLevel() >= 7 && pl.Mzone.Len() < 2 {
+				} else if c.GetLevel() >= 7 && pl.Mzone().Len() < 2 {
 					return false
-				} else if c.GetLevel() >= 5 && pl.Mzone.Len() < 1 {
+				} else if c.GetLevel() >= 5 && pl.Mzone().Len() < 1 {
 					return false
 				}
 			} else if c.IsInSzone() && (c.IsTrap() || c.IsFaceUp()) {
@@ -375,9 +413,9 @@ func (pl *Player) battle(lp lp_type) {
 		}
 	}()
 
-	pl.ResetWaitTime()
+	pl.resetWaitTime()
 	for {
-		ca, u := pl.selectForWarn(pl.Mzone, func(c *Card) bool {
+		ca, u := pl.selectForWarn(pl.Mzone(), func(c *Card) bool {
 			return c.IsFaceUpAttack() && c.IsCanAttack()
 		})
 		if ca == nil {
@@ -395,14 +433,14 @@ func (pl *Player) battle(lp lp_type) {
 
 		tar := pl.GetTarget()
 		pl.Msg("102", nil)
-		if tar.Mzone.Len() != 0 {
-			if c, _ := pl.selectForWarn(tar.Mzone, tar.Portrait, func(c0 *Card) bool {
+		if tar.Mzone().Len() != 0 {
+			if c, _ := pl.selectForWarn(tar.Mzone(), tar.Portrait(), func(c0 *Card) bool {
 				return !(c0.IsPortrait() && !ca.IsCanDirect())
 			}); c != nil {
 				ca.Dispatch(Declaration, c)
 			}
 		} else {
-			if c, _ := pl.selectForWarn(tar.Portrait); c != nil {
+			if c, _ := pl.selectForWarn(tar.Portrait()); c != nil {
 				ca.Dispatch(Declaration, c)
 			}
 		}
@@ -410,13 +448,13 @@ func (pl *Player) battle(lp lp_type) {
 }
 
 func (pl *Player) end(lp lp_type) {
-	if i := pl.Hand.Len() - pl.MaxSdi; i > 0 {
-		pl.ResetReplyTime()
+	if i := pl.Hand().Len() - pl.maxSdi; i > 0 {
+		pl.resetReplyTime()
 		pl.Msg("103", nil)
 		for k := 0; k != i; k++ {
-			ca := pl.SelectForWarn(pl.Hand)
+			ca := pl.SelectForWarn(pl.Hand())
 			if ca == nil {
-				ca = pl.Hand.EndPop()
+				ca = pl.Hand().EndPop()
 			}
 			ca.Dispatch(Discard)
 		}
@@ -427,55 +465,52 @@ func (pl *Player) init() {
 	pl.ActionDraw(5)
 }
 
-func (pl *Player) InitPlayer(u int) {
-	if pl.Portrait.Len() > 0 {
+func (pl *Player) initPlayer(u int) {
+	if pl.Portrait().Len() > 0 {
 		return
 	}
 	c := NewNoneCardOriginal().Make(pl)
-	pl.Portrait.EndPush(c)
-	pl.CallAll(setPortrait(c, u))
+	pl.Portrait().EndPush(c)
+	pl.callAll(setPortrait(c, u))
 }
 
-func (pl *Player) initDeck(a []uint) {
-	if pl.Deck.Len() > 0 {
+func (pl *Player) initDeck() {
+	if pl.Deck().Len() > 0 {
 		return
 	}
 
-	pl.Game().CardVer.Deck(pl, a)
+	pl.Game().CardVer.Deck(pl)
 	pl.ActionShuffle()
 }
 
 func (pl *Player) GetHp() int {
-	return pl.Hp
+	return pl.hp
 }
 
 func (pl *Player) ChangeHp(i int) {
-	pl.Dispatch(ChangeHP, pl, i)
-}
-
-func (pl *Player) changeHp(i int) {
 	if i < 0 {
 		pl.MsgPub("msg.201", Arg{"num": fmt.Sprint(-i)})
 	} else if i > 0 {
 		pl.MsgPub("msg.202", Arg{"num": fmt.Sprint(i)})
 	}
-	pl.Hp += i
-	if pl.Hp < 0 {
+	pl.hp += i
+	if pl.hp < 0 {
 		pl.Fail()
 	}
-	pl.CallAll(changeHp(pl, pl.Hp))
+	pl.Dispatch(ChangeHP, pl, i)
+	pl.callAll(changeHp(pl, pl.hp))
 
 }
 
 func (pl *Player) GetTarget() *Player {
-	if pl.Index == 0 {
-		return pl.Game().GetPlayerForIndex(1)
+	if pl.index == 0 {
+		return pl.Game().getPlayerForIndex(1)
 	}
-	return pl.Game().GetPlayerForIndex(0)
+	return pl.Game().getPlayerForIndex(0)
 }
 
 func (pl *Player) ActionShuffle() {
-	pl.Deck.Shuffle()
+	pl.Deck().Shuffle()
 }
 
 func (pl *Player) ActionDraw(s int) {
@@ -483,43 +518,43 @@ func (pl *Player) ActionDraw(s int) {
 		return
 	}
 	for i := 0; i != s; i++ {
-		if pl.Deck.Len() == 0 {
+		if pl.Deck().Len() == 0 {
 			pl.Fail()
 			return
 		}
 		pl.Dispatch(DrawNum, pl)
-		t := pl.Deck.EndPop()
-		pl.Hand.EndPush(t)
+		t := pl.Deck().EndPop()
+		pl.Hand().EndPush(t)
 	}
 	pl.Dispatch(Draw, pl)
 }
 
-func (pl *Player) Call(method string, reply interface{}) error {
+func (pl *Player) call(method string, reply interface{}) error {
 	return pl.Game().Room.Push(Call{
 		Method: method,
 		Args:   reply,
-	}, pl.Session)
+	}, pl.session)
 }
 
-func (pl *Player) CallAll(method string, reply interface{}) error {
-	if pl.RoundSize != 0 {
+func (pl *Player) callAll(method string, reply interface{}) error {
+	if pl.roundSize != 0 {
 		nap(1)
 	}
-	return pl.Game().CallAll(method, reply)
+	return pl.Game().callAll(method, reply)
 }
-func (pl *Player) IsOutTime() bool {
-	return pl.PassTime == 0
+func (pl *Player) isOutTime() bool {
+	return pl.passTime == 0
 }
-func (pl *Player) OutTime() {
-	pl.PassTime = 0
-}
-
-func (pl *Player) ResetReplyTime() {
-	pl.PassTime = pl.ReplyTime
+func (pl *Player) outTime() {
+	pl.passTime = 0
 }
 
-func (pl *Player) ResetWaitTime() {
-	pl.PassTime = pl.WaitTime
+func (pl *Player) resetReplyTime() {
+	pl.passTime = pl.replyTime
+}
+
+func (pl *Player) resetWaitTime() {
+	pl.passTime = pl.waitTime
 }
 
 func (pl *Player) IsCanSummon() bool {
@@ -533,13 +568,17 @@ func (pl *Player) SetNotCanSummon() {
 	pl.lastSummonRound = pl.GetRound()
 }
 
+func (pl *Player) IsOutTime() bool {
+	return pl.passTime <= 0
+}
+
 func (pl *Player) SelectWill() (p AskCode) {
-	pl.CallAll(flashStep(pl))
+	pl.callAll(flashStep(pl))
 	for {
 		select {
 		case <-time.After(time.Second):
-			pl.PassTime -= time.Second
-			if pl.PassTime <= 0 {
+			pl.passTime -= time.Second
+			if pl.IsOutTime() {
 				return
 			}
 		case p = <-pl.GetCode():
@@ -552,35 +591,32 @@ func (pl *Player) SelectWill() (p AskCode) {
 func (pl *Player) Select() (*Card, uint) {
 	p := pl.SelectWill()
 	if p.Uniq != 0 {
-		return pl.Game().GetCard(p.Uniq), p.Method
+		return pl.Game().getCard(p.Uniq), p.Method
 	}
 	return nil, p.Method
 }
 func (pl *Player) selectForPopup(ci ...interface{}) (c *Card, u uint) {
 	css := NewCards(ci...)
-	//	if css.Len() == 0 {
-	//		nap(10)
-	//		return
-	//	}
 	css.ForEach(func(c *Card) bool {
 		c.Peek()
 		return true
 	})
-	return pl.selectForWarn(ci...)
+	return pl.selectForWarn(css)
 }
+
 func (pl *Player) SelectForPopup(ci ...interface{}) *Card {
-	c, _ := pl.selectForPopup(ci...)
-	return c
+	css := NewCards(ci...)
+	css.ForEach(func(c *Card) bool {
+		c.Peek()
+		return true
+	})
+	return pl.SelectForWarn(css)
 }
 
 func (pl *Player) selectForWarn(ci ...interface{}) (c *Card, u uint) {
 	css := NewCards(ci...)
-	//	if css.Len() == 0 {
-	//		nap(5)
-	//		return
-	//	}
-	pl.Call(setPick(css, pl))
-	defer pl.Call(cloPick(pl))
+	pl.call(setPick(css, pl, ""))
+	defer pl.call(cloPick(pl))
 	if c, u = pl.Select(); c != nil {
 		if css.IsExistCard(c) {
 			return
@@ -590,6 +626,18 @@ func (pl *Player) selectForWarn(ci ...interface{}) (c *Card, u uint) {
 }
 
 func (pl *Player) SelectForWarn(ci ...interface{}) *Card {
-	c, _ := pl.selectForWarn(ci...)
-	return c
+	css := NewCards(ci...)
+	pl.call(setPick(css, pl, "Select"))
+	defer pl.call(cloPick(pl))
+	for {
+		c, u := pl.Select()
+		if c != nil && css.IsExistCard(c) {
+			return c
+		}
+
+		if pl.IsOutTime() || u == LI_No || css.Len() == 0 {
+			return nil
+		}
+	}
+	return nil
 }

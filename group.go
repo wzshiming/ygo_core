@@ -24,9 +24,9 @@ func (cp *Group) GetOwner() *Player {
 	return cp.owner
 }
 
-func (cp *Group) SetName(name ll_type) {
-	cp.name = name
-}
+//func (cp *Group) SetName(name ll_type) {
+//	cp.name = name
+//}
 
 func (cp *Group) GetName() ll_type {
 	return cp.name
@@ -42,7 +42,7 @@ func (cp *Group) EndPush(c *Card) {
 
 func (cp *Group) Insert(c *Card, index int) {
 	c.Placed()
-	c.GetSummoner().CallAll(moveCard(c, cp.GetName()))
+	c.GetSummoner().callAll(moveCard(c, cp.GetName()))
 	c.place = cp
 	cp.Cards.Insert(c, index)
 	c.Dispatch(In + string(cp.GetName()))

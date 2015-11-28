@@ -1,13 +1,23 @@
 package ygo_core
 
 import (
-	"service/proto"
 	"time"
 
 	"github.com/wzshiming/base"
 	"github.com/wzshiming/dispatcher"
 	"github.com/wzshiming/server/agent"
 )
+
+type PlayerInit struct {
+	//Hp   int    `json:"hp"`
+	Name string `json:"name"`
+}
+
+type GameInitResponse struct {
+	// user 表示当前游戏中 卡片的id
+	Index int          `json:"index"` //自身的索引
+	Users []PlayerInit `json:"users"`
+}
 
 type YGO struct {
 	dispatcher.Events
@@ -39,6 +49,11 @@ func NewYGO(r *agent.Room) *YGO {
 		both:     map[string]bool{},
 		multi:    map[string]bool{},
 	}
+	yg.Room.ForEach(func(sess *agent.Session) {
+		p := newPlayer(yg)
+		p.session = sess
+		yg.Players[sess.ToUint()] = p
+	})
 
 	return yg
 }
@@ -47,15 +62,15 @@ func NewYGO(r *agent.Room) *YGO {
 //	rego.ERR(eventName, args)
 //}
 
-func (yg *YGO) RegisterBothEvent(eventName string) {
+func (yg *YGO) registerBothEvent(eventName string) {
 	yg.both[eventName] = true
 }
 
-func (yg *YGO) RegisterMultiEvent(eventName string) {
+func (yg *YGO) registerMultiEvent(eventName string) {
 	yg.multi[eventName] = true
 }
 
-func (yg *YGO) Chain(eventName string, ca *Card, pl *Player, args []interface{}) {
+func (yg *YGO) chain(eventName string, ca *Card, pl *Player, args []interface{}) {
 
 	if ca != nil {
 		flag := true
@@ -93,9 +108,9 @@ func (yg *YGO) Chain(eventName string, ca *Card, pl *Player, args []interface{})
 		}
 	})
 	if cs.Len() > 0 || yg.both[eventName] {
-		pl.Chain(eventName, ca, cs, args)
+		pl.chain(eventName, ca, cs, args)
 		if ca != nil && ca.IsValid() {
-			pl.GetTarget().Chain(eventName, ca, cs, args)
+			pl.GetTarget().chain(eventName, ca, cs, args)
 		}
 	}
 	yg.EmptyEvent(Chain)
@@ -106,22 +121,22 @@ func (yg *YGO) GetPlayer(sess *agent.Session) *Player {
 	return yg.Players[sess.ToUint()]
 }
 
-func (yg *YGO) GetCard(u uint) (c *Card) {
+func (yg *YGO) getCard(u uint) (c *Card) {
 	c = yg.Cards[u]
 	return
 }
 
-func (yg *YGO) RegisterCards(c *Card) {
+func (yg *YGO) registerCards(c *Card) {
 	yg.Cards[c.ToUint()] = c
 }
 
-func (yg *YGO) ForEachPlayer(fun func(*Player)) {
+func (yg *YGO) forEachPlayer(fun func(*Player)) {
 	for _, v := range yg.round {
 		fun(yg.Players[v])
 	}
 }
 
-func (yg *YGO) CallAll(method string, reply interface{}) error {
+func (yg *YGO) callAll(method string, reply interface{}) error {
 	yg.Room.Broadcast(Call{
 		Method: method,
 		Args:   reply,
@@ -129,7 +144,7 @@ func (yg *YGO) CallAll(method string, reply interface{}) error {
 	return nil
 }
 
-func (yg *YGO) GetPlayerForIndex(i int) *Player {
+func (yg *YGO) getPlayerForIndex(i int) *Player {
 	return yg.Players[yg.round[i]]
 }
 
@@ -139,64 +154,48 @@ func (yg *YGO) Loop() {
 			base.DebugStack()
 		}
 	}()
-	yg.Room.ForEach(func(sess *agent.Session) {
-		p := NewPlayer(yg)
-		p.Session = sess
-		yg.Players[sess.ToUint()] = p
-	})
 
-	nap(1) // 服务端初始化
+	// 服务端初始化
 	for k, _ := range yg.Players {
 		yg.round = append(yg.round, k)
 	}
 
 	for k, v := range yg.round {
-		ca := yg.Players[v].Camp
+		ca := yg.Players[v].camp
 		yg.Survival[ca] = yg.Survival[ca] + 1
-		yg.Players[v].Index = k
+		yg.Players[v].index = k
 		yg.Players[v].game = yg
-		yg.Players[v].RoundSize = 0
+		yg.Players[v].roundSize = 0
 
-		var id uint
-		yg.Players[v].Session.Data.Get("userid", &id)
-		if id == 0 {
+		if yg.Players[v].Id == 0 || yg.Players[v].Name == "" {
 			yg.Players[v].Name = "Guest"
-		} else {
-			var name string
-			yg.Players[v].Session.Data.Get("username", &name)
-			yg.Players[v].Name = name
 		}
-
 	}
 
-	nap(1) // 客户端初始化
-	gi := proto.GameInitResponse{}
+	// 客户端初始化
+	gi := GameInitResponse{}
 	for _, v := range yg.round {
-		pi := proto.PlayerInit{
+		pi := PlayerInit{
 			//Hp:   yg.Players[v].Hp,
 			Name: yg.Players[v].Name,
 		}
 		gi.Users = append(gi.Users, pi)
 	}
 	for _, v := range yg.round {
-		gi.Index = yg.Players[v].Index
-		yg.Players[v].Call("init", gi)
+		gi.Index = yg.Players[v].index
+		yg.Players[v].call("init", gi)
 	}
 
-	nap(10) // 界面初始化
+	//nap(10) // 界面初始化
 	i := 31
 	for _, v := range yg.round {
 		i++
-		yg.Players[v].InitPlayer(i)
+		yg.Players[v].initPlayer(i)
 	}
 
-	nap(10) // 牌组初始化
+	//nap(10) // 牌组初始化
 	for _, v := range yg.round {
-		var deck proto.Deck
-		yg.Players[v].Session.Data.Get("deck", &deck)
-
-		yg.Players[v].initDeck(deck.GetMain())
-
+		yg.Players[v].initDeck()
 	}
 
 	nap(20) // 手牌初始化
@@ -206,31 +205,31 @@ func (yg *YGO) Loop() {
 	}
 
 	//必要连锁初始化
-	yg.RegisterBothEvent(Summon)
-	yg.RegisterBothEvent(SummonFlip)
-	yg.RegisterBothEvent(SummonSpecial)
-	yg.RegisterBothEvent(Declaration)
-	yg.RegisterBothEvent(UseTrap)
-	yg.RegisterBothEvent(UseMagic)
-	yg.RegisterMultiEvent(DP)
-	yg.RegisterMultiEvent(SP)
-	yg.RegisterMultiEvent(MP)
-	yg.RegisterMultiEvent(EP)
+	yg.registerBothEvent(Summon)
+	yg.registerBothEvent(SummonFlip)
+	yg.registerBothEvent(SummonSpecial)
+	yg.registerBothEvent(Declaration)
+	yg.registerBothEvent(UseTrap)
+	yg.registerBothEvent(UseMagic)
+	yg.registerMultiEvent(DP)
+	yg.registerMultiEvent(SP)
+	yg.registerMultiEvent(MP)
+	yg.registerMultiEvent(EP)
 
 	nap(10) // 游戏开始
 
-	pl := yg.GetPlayerForIndex(0)
+	pl := yg.getPlayerForIndex(0)
 	pl.MsgPub("msg.001", nil)
-	if pl.Portrait.Len() == 1 {
-		ca := pl.Portrait.Get(0)
+	if pl.Portrait().Len() == 1 {
+		ca := pl.Portrait().Get(0)
 		ca.RegisterGlobalListen(BP, func(tar *Player) {
-			tar.Mzone.ForEach(func(c *Card) bool {
+			tar.Mzone().ForEach(func(c *Card) bool {
 				c.SetNotCanAttack()
 				return true
 			})
 		})
 		ca.RegisterGlobalListen(RoundEnd, func() {
-			ca.UnregisterGlobalListen()
+			ca.UnregisterAllGlobalListen()
 		})
 	}
 
@@ -245,7 +244,7 @@ loop:
 			nap(5)
 			yg.Current = yg.Players[v]
 			yg.Current.round()
-			yg.ForEachPlayer(func(pl *Player) {
+			yg.forEachPlayer(func(pl *Player) {
 				if pl.IsFail() {
 					yg.Over = true
 				}
@@ -261,6 +260,6 @@ loop:
 }
 
 func (yg *YGO) GameOver() {
-	yg.CallAll("over", nil)
+	yg.callAll(over(yg))
 	yg.Current.MsgPub("msg.000", nil)
 }

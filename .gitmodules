@@ -1,0 +1,3 @@
+[submodule "ygo_cards"]
+	path = ygo_cards
+	url = https://github.com/wzshiming/ygo_cards

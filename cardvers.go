@@ -136,17 +136,19 @@ func (cv *CardVersion) Sum(cv2 *CardVersion) *CardVersion {
 	return rcv
 }
 
-func (cv *CardVersion) Deck(player *Player, deck []uint) {
-	for _, v := range deck {
-		t := cv.Get(v)
-		if t != nil {
-			c := t.Make(player)
-			if c.IsExtra() {
-				player.Extra.EndPush(c)
-			} else {
-				player.Deck.EndPush(c)
-			}
+func (cv *CardVersion) Deck(player *Player) {
 
+	for _, v := range player.Decks.main {
+		t := cv.Get(v.index)
+		if t != nil {
+			for i := uint(0); i != v.size; i++ {
+				c := t.Make(player)
+				if c.IsExtra() {
+					player.Extra().EndPush(c)
+				} else {
+					player.Deck().EndPush(c)
+				}
+			}
 		}
 	}
 }
