@@ -103,13 +103,13 @@ func (ca *Card) registerNormal() {
 			ca.AddEvent(InHand, e)
 			ca.AddEvent(InDeck, e)
 		})
-	} else if ca.IsMagicAndTrap() {
-		ca.registerMagicAndTrap()
+	} else if ca.IsSpellAndTrap() {
+		ca.registerSpellAndTrap()
 		ca.AddEvent(OutSzone, e)
 	}
 }
 
-func (ca *Card) registerMagicAndTrap() {
+func (ca *Card) registerSpellAndTrap() {
 	ca.Range(InHand, OutHand, Arg{
 		// 代价 先覆盖
 		Pay: func(s string) {
@@ -129,9 +129,9 @@ func (ca *Card) registerMagicAndTrap() {
 }
 
 // 注册一张魔法卡
-func (ca *Card) registerMagic(e interface{}, only bool) {
+func (ca *Card) registerSpell(e interface{}, only bool) {
 	ca.RegisterPay(func(s string) {
-		if s != UseMagic {
+		if s != UseSpell {
 			return
 		}
 		ca.SetFaceUp()
@@ -139,10 +139,10 @@ func (ca *Card) registerMagic(e interface{}, only bool) {
 		pl.MsgPub("msg.022", Arg{"self": ca.ToUint()})
 	})
 	ca.AddEvent(Onset, func() {
-		ca.Dispatch(UseMagic)
+		ca.Dispatch(UseSpell)
 	})
 	ca.AddEvent(Effect0, e)
-	ca.AddEvent(UseMagic, func() {
+	ca.AddEvent(UseSpell, func() {
 		pl := ca.GetSummoner()
 		if ca.IsValid() {
 			ca.Dispatch(Effect0)
@@ -157,13 +157,13 @@ func (ca *Card) registerMagic(e interface{}, only bool) {
 }
 
 // 注册一张不通常魔法卡
-func (ca *Card) RegisterUnordinaryMagic(e interface{}) {
-	ca.registerMagic(e, false)
+func (ca *Card) RegisterUnnormalSpell(e interface{}) {
+	ca.registerSpell(e, false)
 }
 
 // 注册一张通常魔法卡
-func (ca *Card) RegisterOrdinaryMagic(e interface{}) {
-	ca.registerMagic(e, true)
+func (ca *Card) RegisterNormalMagic(e interface{}) {
+	ca.registerSpell(e, true)
 }
 
 // 卡牌注册一个事件触发器 如果触发则发送给另一个事件
@@ -217,12 +217,12 @@ func (ca *Card) registerTrap(event string, e interface{}, only bool) {
 }
 
 // 注册一张不通常的陷阱卡
-func (ca *Card) RegisterUnordinaryTrap(event string, e interface{}) {
+func (ca *Card) RegisterUnnormalTrap(event string, e interface{}) {
 	ca.registerTrap(event, e, false)
 }
 
 // 注册一张通常的陷阱卡
-func (ca *Card) RegisterOrdinaryTrap(event string, e interface{}) {
+func (ca *Card) RegisterNormalTrap(event string, e interface{}) {
 	ca.registerTrap(event, e, true)
 }
 
@@ -255,8 +255,8 @@ func (ca *Card) UnregisterAllGlobalListen() {
 }
 
 // 注册一个装备魔法卡  装备对象判断  装备上动作 装备下动作
-func (ca *Card) RegisterEquipMagic(a Action, f1 interface{}, f2 interface{}) {
-	ca.RegisterUnordinaryMagic(func() {
+func (ca *Card) RegisterSpellEquip(a Action, f1 interface{}, f2 interface{}) {
+	ca.RegisterUnnormalSpell(func() {
 		pl := ca.GetSummoner()
 		pl.MsgPub("msg.031", Arg{"self": ca.ToUint()})
 		tar := pl.GetTarget()
@@ -300,7 +300,7 @@ func (ca *Card) RegisterFlip(f interface{}) {
 }
 
 // 注册融合怪兽的融合材料
-func (ca *Card) RegisterFusionMonster(names ...string) {
+func (ca *Card) RegisterMonsterFusion(names ...string) {
 	h := map[string]int{}
 	for _, v := range names {
 		h[v]++
@@ -530,7 +530,7 @@ func (ca *Card) registerMonster() {
 				pl.MsgPub("msg.064", Arg{"self": ca.ToUint(), "rival": c.ToUint()})
 				c.Dispatch(BearAttack, ca)
 				if c.IsAttack() {
-					t := ca.GetAttack() - c.GetAttack()
+					t := ca.GetAtk() - c.GetAtk()
 					if t > 0 {
 						ca.Dispatch(Deduct, tar, -t)
 						c.Dispatch(DestroyBeBattle, ca)
@@ -542,7 +542,7 @@ func (ca *Card) registerMonster() {
 						ca.Dispatch(DestroyBeBattle, c)
 					}
 				} else if c.IsDefense() {
-					t := ca.GetAttack() - c.GetDefense()
+					t := ca.GetAtk() - c.GetDef()
 					if t > 0 {
 						c.Dispatch(DestroyBeBattle, ca)
 					} else if t < 0 {
@@ -553,7 +553,7 @@ func (ca *Card) registerMonster() {
 				c.Dispatch(Fought, ca)
 			} else {
 				tar := pl.GetTarget()
-				ca.Dispatch(Deduct, tar, -ca.GetAttack())
+				ca.Dispatch(Deduct, tar, -ca.GetAtk())
 				pl.MsgPub("msg.065", Arg{"self": ca.ToUint()})
 			}
 

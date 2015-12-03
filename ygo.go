@@ -210,7 +210,7 @@ func (yg *YGO) Loop() {
 	yg.registerBothEvent(SummonSpecial)
 	yg.registerBothEvent(Declaration)
 	yg.registerBothEvent(UseTrap)
-	yg.registerBothEvent(UseMagic)
+	yg.registerBothEvent(UseSpell)
 	yg.registerMultiEvent(DP)
 	yg.registerMultiEvent(SP)
 	yg.registerMultiEvent(MP)

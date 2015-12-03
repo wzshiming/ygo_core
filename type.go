@@ -6,30 +6,30 @@ type lc_type uint32
 const (
 	LC_None lc_type = 0
 
-	LC_OrdinaryMonster lc_type = 1 << (32 - 1 - iota) //普通怪兽 黄色
-	LC_EffectMonster                                  //效果怪兽 橙色
-	LC_FusionMonster                                  //融合怪兽 紫色
-	LC_ExcessMonster                                  //超量怪兽 黑色
-	LC_HomologyMonster                                //同调怪兽 白色
-	LC_RiteMonster                                    //仪式怪兽 蓝色
-	LC_OrdinaryMagic                                  //普通魔法 通常
-	LC_RiteMagic                                      //仪式魔法
-	LC_SustainsMagic                                  //永续魔法
-	LC_EquipMagic                                     //装备魔法
-	LC_PlaceMagic                                     //场地魔法
-	LC_RushMagic                                      //速攻魔法 速度2
-	LC_OrdinaryTrap                                   //普通陷阱 速度2
-	LC_SustainsTrap                                   //永续陷阱 速度2
-	LC_ReactionTrap                                   //反击陷阱 速度3
+	LC_MonsterNormal   lc_type = 1 << (32 - 1 - iota) //普通怪兽 黄色
+	LC_MonsterEffect                                  //效果怪兽 橙色
+	LC_MonsterFusion                                  //融合怪兽 紫色
+	LC_MonsterXyz                                     //超量怪兽 黑色
+	LC_MonsterSynchro                                 //同调怪兽 白色
+	LC_MonsterRitual                                  //仪式怪兽 蓝色
+	LC_SpellNormal                                    //普通魔法 通常
+	LC_SpellRitual                                    //仪式魔法
+	LC_SpellContinuous                                //永续魔法
+	LC_SpellEquip                                     //装备魔法
+	LC_SpellField                                     //场地魔法
+	LC_SpellQuickPlay                                 //速攻魔法 速度2
+	LC_TrapNormal                                     //普通陷阱 速度2
+	LC_TrapContinuous                                 //永续陷阱 速度2
+	LC_TrapCounter                                    //反击陷阱 速度3
 
 	// 怪物卡
-	LC_Monster = LC_OrdinaryMonster | LC_EffectMonster | LC_ExcessMonster | LC_HomologyMonster | LC_FusionMonster | LC_RiteMonster
+	LC_Monster = LC_MonsterNormal | LC_MonsterEffect | LC_MonsterXyz | LC_MonsterSynchro | LC_MonsterFusion | LC_MonsterRitual
 	// 魔法卡
-	LC_Magic = LC_OrdinaryMagic | LC_RiteMagic | LC_SustainsMagic | LC_EquipMagic | LC_PlaceMagic | LC_RushMagic
+	LC_Spell = LC_SpellNormal | LC_SpellRitual | LC_SpellContinuous | LC_SpellEquip | LC_SpellField | LC_SpellQuickPlay
 	// 陷阱卡
-	LC_Trap = LC_OrdinaryTrap | LC_SustainsTrap | LC_ReactionTrap
+	LC_Trap = LC_TrapNormal | LC_TrapContinuous | LC_TrapCounter
 	// 魔法卡与陷阱卡
-	LC_MagicAndTrap = LC_Magic | LC_Trap
+	LC_SpellAndTrap = LC_Spell | LC_Trap
 )
 
 // 怪兽属性 Attributes
@@ -53,31 +53,31 @@ type lr_type uint32
 const (
 	LR_None lr_type = 0
 
-	LR_Warrior       lr_type = 1 << (32 - 1 - iota) //战士族
-	LR_SpellCaster                                  //魔法使用族
-	LR_Fairy                                        //精灵族
-	LR_Fiend                                        //恶魔族
-	LR_Zombie                                       //不死族
-	LR_Machine                                      //机械族
-	LR_Aqua                                         //水族
-	LR_Pyro                                         //炎族
-	LR_Rock                                         //岩石族
-	LR_WindBeast                                    //鸟兽族
-	LR_Plant                                        //植物族
-	LR_Insect                                       //昆虫族
-	LR_Thunder                                      //雷族
-	LR_Dragon                                       //龙族
-	LR_Beast                                        //兽族
-	LR_BeastWarror                                  //兽战士族
-	LR_Dinosaur                                     //恐龙族
-	LR_Fish                                         //鱼族
-	LR_Seaserpent                                   //海龙族
-	LR_Reptile                                      //爬虫族
-	LR_Psycho                                       //念动力族
-	LR_DivineBeast                                  //幻神兽族
-	LR_Angel                                        //天使族
-	LR_CreatorGod                                   //创造神族
-	LR_PhantomDragon                                //幻龙族
+	LR_Warrior      lr_type = 1 << (32 - 1 - iota) //战士族
+	LR_Spellcaster                                 //魔法使用族
+	LR_Fairy                                       //精灵族 天使族
+	LR_Fiend                                       //恶魔族
+	LR_Zombie                                      //不死族
+	LR_Machine                                     //机械族
+	LR_Water                                       //水族
+	LR_Fire                                        //炎族
+	LR_Rock                                        //岩石族
+	LR_WingedBeast                                 //鸟兽族
+	LR_Plant                                       //植物族
+	LR_Insect                                      //昆虫族
+	LR_Thunder                                     //雷族
+	LR_Dragon                                      //龙族
+	LR_Beast                                       //兽族
+	LR_BeastWarrior                                //兽战士族
+	LR_Dinosaur                                    //恐龙族
+	LR_Fish                                        //鱼族
+	LR_SeaSerpent                                  //海龙族
+	LR_Reptile                                     //爬虫族
+	LR_Psychic                                     //念动力族
+	LR_DivineBeast                                 //幻神兽族
+	//LR_Fairy     //天使族
+	//LR_CreatorGod //创造神族
+	//LR_DivineBeast   //幻龙族
 )
 
 // 表示形式 Expression

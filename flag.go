@@ -83,7 +83,7 @@ const (
 	Freedom         = "Freedom"         // 解放
 
 	// 由卡牌发出
-	UseMagic = "UseMagic" // 使用魔法卡
+	UseSpell = "UseSpell" // 使用魔法卡
 	UseTrap  = "UseTrap"  // 使用陷阱卡
 
 	Effect0 = "effect0" // 效果

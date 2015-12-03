@@ -38,6 +38,15 @@ func (cv *CardVersion) Get(id uint) *CardOriginal {
 	return cv.List[id]
 }
 
+func (cv *CardVersion) ListIsValid() (u []uint) {
+	for k, v := range cv.List {
+		if v.IsValid {
+			u = append(u, k)
+		}
+	}
+	return
+}
+
 func (cv *CardVersion) AllIsValid() (cr CardRets) {
 	for k, v := range cv.List {
 		if v.IsValid {
