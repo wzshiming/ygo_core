@@ -64,7 +64,7 @@ func (ca *Card) registerNormal() {
 		ca.UnregisterAllGlobalListen()
 		//pl := ca.GetSummoner()
 		//pl.MsgPub("msg.016", Arg{"self": ca.ToUint()})
-		ca.isValid = false
+		//ca.isValid = false
 	})
 
 	// 进入墓地和除外
@@ -95,14 +95,19 @@ func (ca *Card) registerNormal() {
 	}
 
 	if ca.IsMonster() {
+		ca.registerMonster()
 		ca.AddEvent(InGrave, e)
 		ca.AddEvent(InRemoved, e)
 		ca.AddEvent(InSzone, e)
-		ca.registerMonster()
 		ca.AddEvent(InMzone, func() {
 			ca.AddEvent(InHand, e)
 			ca.AddEvent(InDeck, e)
 		})
+
+		if ca.IsExtra() {
+			ca.AddEvent(InHand, ca.ToExtra)
+		}
+
 	} else if ca.IsSpellAndTrap() {
 		ca.registerSpellAndTrap()
 		ca.AddEvent(OutSzone, e)
@@ -390,8 +395,13 @@ func (ca *Card) registerMonster() {
 	ca.AddEvent(SummonSpecial, e0)
 
 	// 正面朝上时和改变属性时显示属性
-	ca.AddEvent(Change, ca.ShowInfo)
+	ca.AddEvent(Change, func() {
+		if ca.IsFaceUp() {
+			ca.ShowInfo()
+		}
+	})
 	ca.AddEvent(FaceUp, ca.ShowInfo)
+
 	// 手牌
 	ca.Range(InHand, OutHand, Arg{
 		// 代价
@@ -424,22 +434,18 @@ func (ca *Card) registerMonster() {
 		},
 		// 召唤
 		Summon: func() {
-			if ca.IsValid() {
-				pl := ca.GetSummoner()
-				ca.ToMzone()
-				ca.SetNotCanChange()
-				pl.MsgPub("msg.046", Arg{"self": ca.ToUint()})
-			}
+			pl := ca.GetSummoner()
+			ca.ToMzone()
+			ca.SetNotCanChange()
+			pl.MsgPub("msg.046", Arg{"self": ca.ToUint()})
 		},
 		// 覆盖
 		Cover: func() {
 			pl := ca.GetSummoner()
-			if ca.IsInHand() {
-				ca.ToMzone()
-				ca.SetFaceDownDefense()
-				ca.SetNotCanChange()
-				pl.Msg("047", Arg{"self": ca.ToUint()})
-			}
+			ca.ToMzone()
+			ca.SetFaceDownDefense()
+			ca.SetNotCanChange()
+			pl.Msg("047", Arg{"self": ca.ToUint()})
 		},
 	})
 

@@ -171,3 +171,14 @@ const (
 
 	LL_Portrait = "portrait" // 玩家头像
 )
+
+// 卡牌操作提示 Operation
+type lo_type string
+
+const (
+	LO_None    lo_type = ""
+	LO_Discard         = "Discard"
+	LO_Attack          = "Attack"
+	LO_Target          = "Target"
+	LO_Select          = "Select"
+)

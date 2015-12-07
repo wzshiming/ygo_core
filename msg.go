@@ -88,11 +88,11 @@ func message(format string, a Arg) (string, Arg) {
 }
 
 //给用户选择
-func setPick(cs *Cards, pl *Player, sole string) (string, Arg) {
+func setPick(use lo_type, cs *Cards, pl *Player) (string, Arg) {
 	return "setPick", Arg{
 		"master": pl.index,
 		"uniqs":  cs.Uniqs(),
-		"sole":   sole,
+		"use":    use,
 	}
 }
 

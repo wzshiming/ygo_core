@@ -59,6 +59,7 @@ type Card struct {
 	lastAttackRound int  // 最后攻击回合
 	lastChangeRound int  // 最后改变表示形式回合
 	direct          bool // 直接攻击玩家
+
 }
 
 func (ca *Card) Peek() {
