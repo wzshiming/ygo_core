@@ -107,7 +107,7 @@ const (
 	LI_None li_type = iota
 
 	LI_Use1   = 1   // 使用
-	LI_Use2   = 5   // 覆盖
+	LI_Use2   = 2   // 覆盖
 	LI_Yes    = 10  // 是
 	LI_No     = 11  // 否
 	LI_Defeat = 666 // 认输
@@ -157,28 +157,45 @@ type ll_type string
 const (
 	LL_None ll_type = ""
 
-	LL_Deck    = "deck"    // 卡组
-	LL_Hand    = "hand"    // 手牌
-	LL_Mzone   = "mzone"   // 怪兽区
-	LL_Szone   = "szone"   // 魔陷区
-	LL_Grave   = "grave"   // 墓地
-	LL_Removed = "removed" // 移除
-	LL_Extra   = "extra"   // 额外
-	LL_Field   = "field"   // 场地
-	LL_OverLay = "overLay" //
-	LL_Fzone   = "fzone"   //
-	LL_Pzone   = "pzone"   //
+	LL_Deck    ll_type = "deck"    // 卡组
+	LL_Hand    ll_type = "hand"    // 手牌
+	LL_Mzone   ll_type = "mzone"   // 怪兽区
+	LL_Szone   ll_type = "szone"   // 魔陷区
+	LL_Grave   ll_type = "grave"   // 墓地
+	LL_Removed ll_type = "removed" // 移除
+	LL_Extra   ll_type = "extra"   // 额外
+	LL_Field   ll_type = "field"   // 场地
+	LL_OverLay ll_type = "overLay" //
+	LL_Fzone   ll_type = "fzone"   //
+	LL_Pzone   ll_type = "pzone"   //
 
-	LL_Portrait = "portrait" // 玩家头像
+	LL_Portrait ll_type = "portrait" // 玩家头像
 )
 
 // 卡牌操作提示 Operation
 type lo_type string
 
 const (
-	LO_None    lo_type = ""
-	LO_Discard         = "Discard"
-	LO_Attack          = "Attack"
-	LO_Target          = "Target"
-	LO_Select          = "Select"
+	LO_None          lo_type = ""
+	LO_Chain         lo_type = "Chain"
+	LO_Onset         lo_type = "Onset"
+	LO_Cover         lo_type = "Cover"
+	LO_Discard       lo_type = "Discard"
+	LO_Attack        lo_type = "Attack"
+	LO_Target        lo_type = "Target"
+	LO_Select        lo_type = "Select"
+	LO_Destroy       lo_type = "Destroy"
+	LO_Freedom       lo_type = "Freedom"
+	LO_Cost          lo_type = "Cost"
+	LO_Expres        lo_type = "Expres"
+	LO_Popup         lo_type = "Popup"
+	LO_Summon        lo_type = "Summon"
+	LO_SummonFreedom lo_type = "SummonFreedom"
+	LO_SummonSpecial lo_type = "SummonSpecial"
+	LO_CoverFreedom  lo_type = "CoverFreedom"
+	LO_Removed       lo_type = "Removed"
+	LO_JoinHand      lo_type = "JoinHand"
+	LO_Puppet        lo_type = "Puppet"
+	LO_Equip         lo_type = "Equip"
+	LO_Fusion        lo_type = "Fusion"
 )

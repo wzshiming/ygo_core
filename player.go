@@ -6,18 +6,17 @@ import (
 
 	"github.com/wzshiming/base"
 	"github.com/wzshiming/dispatcher"
-	"github.com/wzshiming/server/agent"
 )
 
 type Player struct {
 	//
 	dispatcher.Events
 	MsgChan
-	Name    string         // 用户名
-	Id      uint           //
-	Decks   *deck          //卡组数据
-	session *agent.Session // 会话
-	phases  lp_type
+	name     string // 用户名
+	id       uint   //
+	decks    *deck  //卡组数据
+	sessUniq uint   // 会话
+	phases   lp_type
 
 	// 规则属性
 	index     int           // 玩家索引
@@ -35,17 +34,7 @@ type Player struct {
 	maxSdi    int  // 最大手牌
 
 	// 卡牌区
-	//Deck 卡组 40 ~ 60
-	//Hand 手牌
-	//Extra 额外卡组 <= 15 融合怪物 同调怪物 超量怪物
-	//Removed 排除卡
-	//Grave 墓地
-	//Mzone 怪物卡区 5
-	//Szone 魔法卡陷阱卡区 5
-	//Field 场地卡
-	// 特殊区
-	//Side 副卡组 <= 15 不参与游戏
-	//Portrait 玩家头像
+
 	area map[ll_type]*Group
 
 	// 其他的
@@ -178,10 +167,10 @@ func (pl *Player) Msg(fmts string, a Arg) {
 		a = map[string]interface{}{}
 	}
 	if a["self"] == nil {
-		a["self"] = pl.Name
+		a["self"] = pl.name
 	}
 	if a["rival"] == nil {
-		a["rival"] = pl.GetTarget().Name
+		a["rival"] = pl.GetTarget().name
 	}
 	pl.call(message(fmts, a))
 }
@@ -191,10 +180,10 @@ func (pl *Player) MsgPub(fmts string, a Arg) {
 		a = map[string]interface{}{}
 	}
 	if a["self"] == nil {
-		a["self"] = pl.Name
+		a["self"] = pl.name
 	}
 	if a["rival"] == nil {
-		a["rival"] = pl.GetTarget().Name
+		a["rival"] = pl.GetTarget().name
 	}
 	pl.callAll(message(fmts, a))
 }
@@ -239,7 +228,7 @@ func (pl *Player) chain(eventName string, ca *Card, cs *Cards, a []interface{}) 
 	pl.callAll(flashStep(pl))
 
 	for {
-		if pl.isOutTime() {
+		if pl.IsOutTime() {
 			break
 		}
 		cs0 := cs.Find(func(c *Card) bool {
@@ -260,7 +249,7 @@ func (pl *Player) chain(eventName string, ca *Card, cs *Cards, a []interface{}) 
 		} else {
 			pl.MsgPub("msg.005", Arg{"event": eventName})
 		}
-		c, _ := pl.selectForWarn(cs0)
+		c, _ := pl.selectForWarn(LO_Chain, cs0)
 		if c == nil {
 			break
 			//			if u == LI_No {
@@ -354,22 +343,22 @@ func (pl *Player) main(lp lp_type) {
 
 	pl.resetWaitTime()
 	for {
-		ca, u := pl.selectForWarn(pl.Hand(), pl.Mzone(), pl.Szone(), func(c *Card) bool {
-			if c.IsInHand() && c.IsMonster() {
-				if !pl.IsCanSummon() {
-					return false
-				} else if c.GetLevel() >= 7 && pl.Mzone().Len() < 2 {
-					return false
-				} else if c.GetLevel() >= 5 && pl.Mzone().Len() < 1 {
-					return false
-				}
-			} else if c.IsInSzone() && (c.IsTrap() || c.IsFaceUp()) {
-				return false
-			} else if c.IsInMzone() && !c.IsCanChange() {
-				return false
-			}
-			return true
-		})
+
+		ca, u := pl.selectForMain(
+			LO_Onset, LO_Cover, pl.Hand(), func(c *Card) bool {
+				return c.IsSpell()
+			}, LO_Summon, LO_Cover, pl.Hand(), func(c *Card) bool {
+				return pl.IsCanSummon() && c.IsMonster() && c.GetLevel() <= 4
+			}, LO_SummonFreedom, LO_CoverFreedom, pl.Hand(), func(c *Card) bool {
+				return pl.IsCanSummon() && c.IsMonster() && ((c.GetLevel() > 4 && pl.Mzone().Len() >= 1) || (c.GetLevel() > 6 && pl.Mzone().Len() >= 2))
+			}, LO_Cover, pl.Hand(), func(c *Card) bool {
+				return c.IsTrap()
+			}, LO_Onset, pl.Szone(), func(c *Card) bool {
+				return c.IsSpell()
+			}, LO_Expres, pl.Mzone(), func(c *Card) bool {
+				return c.IsMonster() && c.IsCanChange()
+			})
+
 		if ca == nil {
 			if u == uint(LP_Battle) && lp == LP_Main1 {
 				break
@@ -423,7 +412,7 @@ func (pl *Player) battle(lp lp_type) {
 		if css.Len() == 0 {
 			break
 		}
-		ca, u := pl.selectForWarn(css)
+		ca, u := pl.selectForWarn(LO_Attack, css)
 		if ca == nil {
 			if u == uint(LP_Main2) {
 				break
@@ -443,12 +432,12 @@ func (pl *Player) battle(lp lp_type) {
 		var c *Card
 		if tar.Mzone().Len() != 0 {
 			if ca.IsCanDirect() {
-				c = pl.SelectForWarnShort(1, tar.Mzone(), tar.Portrait())
+				c = pl.SelectForWarnShort(LO_Target, 1, tar.Mzone(), tar.Portrait())
 			} else {
-				c = pl.SelectForWarnShort(1, tar.Mzone())
+				c = pl.SelectForWarnShort(LO_Target, 1, tar.Mzone())
 			}
 		} else {
-			c = pl.SelectForWarnShort(1, tar.Portrait())
+			c = pl.SelectForWarnShort(LO_Target, 1, tar.Portrait())
 		}
 		if c != nil {
 			ca.Dispatch(Declaration, c)
@@ -462,7 +451,7 @@ func (pl *Player) end(lp lp_type) {
 		pl.resetReplyTime()
 		pl.Msg("103", nil)
 		for k := 0; k != i; k++ {
-			ca := pl.SelectForWarnOper(LO_Discard, pl.Hand())
+			ca := pl.SelectForWarn(LO_Discard, pl.Hand())
 			if ca == nil {
 				ca = pl.Hand().EndPop()
 			}
@@ -489,7 +478,7 @@ func (pl *Player) initDeck() {
 		return
 	}
 
-	pl.Game().CardVer.Deck(pl)
+	pl.Game().cardVer.Deck(pl)
 	pl.ActionShuffle()
 }
 
@@ -540,10 +529,7 @@ func (pl *Player) DrawCard(s int) {
 }
 
 func (pl *Player) call(method string, reply interface{}) error {
-	return pl.Game().Room.Push(Call{
-		Method: method,
-		Args:   reply,
-	}, pl.session)
+	return pl.Game().call(method, reply, pl)
 }
 
 func (pl *Player) callAll(method string, reply interface{}) error {
@@ -552,7 +538,7 @@ func (pl *Player) callAll(method string, reply interface{}) error {
 	}
 	return pl.Game().callAll(method, reply)
 }
-func (pl *Player) isOutTime() bool {
+func (pl *Player) IsOutTime() bool {
 	return pl.passTime == 0
 }
 func (pl *Player) outTime() {
@@ -570,6 +556,7 @@ func (pl *Player) resetWaitTime() {
 func (pl *Player) IsCanSummon() bool {
 	return pl.lastSummonRound < pl.GetRound()
 }
+
 func (pl *Player) SetCanSummon() {
 	pl.lastSummonRound = 0
 }
@@ -578,11 +565,11 @@ func (pl *Player) SetNotCanSummon() {
 	pl.lastSummonRound = pl.GetRound()
 }
 
-func (pl *Player) IsOutTime() bool {
+func (pl *Player) isOutTime() bool {
 	return pl.passTime <= 0
 }
 
-func (pl *Player) SelectWill() (p AskCode) {
+func (pl *Player) selectWill() (p AskCode) {
 	pl.callAll(flashStep(pl))
 	for {
 		select {
@@ -598,36 +585,63 @@ func (pl *Player) SelectWill() (p AskCode) {
 	return
 }
 
-func (pl *Player) Select() (*Card, uint) {
-	p := pl.SelectWill()
+func (pl *Player) selectFor() (*Card, uint) {
+	p := pl.selectWill()
 	if p.Uniq != 0 {
 		return pl.Game().getCard(p.Uniq), p.Method
 	}
 	return nil, p.Method
 }
-func (pl *Player) selectForPopup(ci ...interface{}) (c *Card, u uint) {
+
+func (pl *Player) SelectForPopup(lo lo_type, ci ...interface{}) *Card {
 	css := NewCards(ci...)
 	css.ForEach(func(c *Card) bool {
 		c.Peek()
 		return true
 	})
-	return pl.selectForWarn(css)
+	return pl.SelectForWarn(lo, css)
 }
 
-func (pl *Player) SelectForPopup(ci ...interface{}) *Card {
-	css := NewCards(ci...)
-	css.ForEach(func(c *Card) bool {
-		c.Peek()
-		return true
-	})
-	return pl.SelectForWarn(css)
-}
+func (pl *Player) selectForMain(cc ...interface{}) (c *Card, u uint) {
+	b := map[lo_type][]interface{}{}
+	e := true
+	n := LO_None
+	for _, v := range cc {
+		if s, ok := v.(lo_type); ok {
+			if !e {
+				n = LO_None
+				e = true
+			}
+			if n != LO_None {
+				n += ","
+			}
+			n += s
+		} else {
+			b[n] = append(b[n], v)
+			e = false
+		}
+	}
+	css := NewCards()
+	for k, v := range b {
+		cs := NewCards(v...)
+		css.Join(cs)
+		pl.call(setPick(k, cs, pl))
+	}
 
-func (pl *Player) selectForWarn(ci ...interface{}) (c *Card, u uint) {
-	css := NewCards(ci...)
-	pl.call(setPick(LO_None, css, pl))
 	defer pl.call(cloPick(pl))
-	if c, u = pl.Select(); c != nil {
+	if c, u = pl.selectFor(); c != nil {
+		if css.IsExistCard(c) {
+			return
+		}
+	}
+	return nil, u
+}
+
+func (pl *Player) selectForWarn(lo lo_type, ci ...interface{}) (c *Card, u uint) {
+	css := NewCards(ci...)
+	pl.call(setPick(lo, css, pl))
+	defer pl.call(cloPick(pl))
+	if c, u = pl.selectFor(); c != nil {
 		if css.IsExistCard(c) {
 			return
 		}
@@ -636,32 +650,26 @@ func (pl *Player) selectForWarn(ci ...interface{}) (c *Card, u uint) {
 }
 
 // 用户选择卡牌 如果 少于i则直接返回 最后一个卡牌
-func (pl *Player) SelectForWarnShort(i int, ci ...interface{}) (c *Card) {
-	return pl.SelectForWarnShortOper(i, LO_Select, ci...)
-}
 
-func (pl *Player) SelectForWarnShortOper(i int, lo lo_type, ci ...interface{}) (c *Card) {
+func (pl *Player) SelectForWarnShort(lo lo_type, i int, ci ...interface{}) (c *Card) {
 	css := NewCards(ci...)
 	if css.Len() == 0 {
 		return nil
 	} else if css.Len() <= i {
 		return css.EndPop()
 	}
-	return pl.SelectForWarnOper(lo, css)
+	return pl.SelectForWarn(lo, css)
 
 }
 
 // 直到用户选择正确的卡牌
-func (pl *Player) SelectForWarn(ci ...interface{}) *Card {
-	return pl.SelectForWarnOper(LO_Select, ci...)
-}
 
-func (pl *Player) SelectForWarnOper(lo lo_type, ci ...interface{}) *Card {
+func (pl *Player) SelectForWarn(lo lo_type, ci ...interface{}) *Card {
 	css := NewCards(ci...)
 	pl.call(setPick(lo, css, pl))
 	defer pl.call(cloPick(pl))
 	for {
-		c, u := pl.Select()
+		c, u := pl.selectFor()
 		if c != nil && css.IsExistCard(c) {
 			return c
 		}

@@ -265,7 +265,7 @@ func (ca *Card) RegisterSpellEquip(a Action, f1 interface{}, f2 interface{}) {
 		pl := ca.GetSummoner()
 		pl.MsgPub("msg.031", Arg{"self": ca.ToUint()})
 		tar := pl.GetTarget()
-		if c := pl.SelectForWarn(pl.Mzone(), tar.Mzone(), a); c != nil {
+		if c := pl.SelectForWarn(LO_Equip, pl.Mzone(), tar.Mzone(), a); c != nil {
 
 			// 装备卡 离开场地时
 			ca.OnlyOnce(Disabled, func() {
@@ -329,7 +329,7 @@ func (ca *Card) RegisterMonsterFusion(names ...string) {
 					})
 				} else if is.Len() > v {
 					for i := 0; i != v; i++ {
-						tm := pl.SelectForWarn(is)
+						tm := pl.SelectForWarn(LO_Fusion, is)
 						if tm == nil {
 							pl.MsgPub("msg.041", Arg{"self": ca.ToUint()})
 							ca.StopOnce(s)
@@ -422,7 +422,7 @@ func (ca *Card) registerMonster() {
 				pl.MsgPub("msg.044", Arg{"self": ca.ToUint(), "size": i})
 			}
 			for k := 0; k < i; {
-				if t := pl.SelectForWarn(pl.Mzone()); t != nil {
+				if t := pl.SelectForWarn(LO_Freedom, pl.Mzone()); t != nil {
 					t.Dispatch(Freedom, ca, &k)
 				} else {
 					ca.StopOnce(s)

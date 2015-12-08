@@ -147,7 +147,7 @@ func (cv *CardVersion) Sum(cv2 *CardVersion) *CardVersion {
 
 func (cv *CardVersion) Deck(player *Player) {
 
-	for _, v := range player.Decks.main {
+	for _, v := range player.decks.main {
 		t := cv.Get(v.index)
 		if t != nil {
 			for i := uint(0); i != v.size; i++ {

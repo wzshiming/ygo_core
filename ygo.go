@@ -21,15 +21,16 @@ type GameInitResponse struct {
 
 type YGO struct {
 	dispatcher.Events
-	CardVer  *CardVersion
-	Room     *agent.Room
-	StartAt  time.Time
-	Cards    map[uint]*Card
-	Players  map[uint]*Player
-	Current  *Player
-	Survival map[int]int
-	Over     bool
-	round    []uint
+	Room      *agent.Room
+	cardVer   *CardVersion
+	StartAt   time.Time
+	cards     map[uint]*Card
+	players   map[uint]*Player
+	sesstions map[uint]*agent.Session
+	current   *Player
+	Survival  map[int]int
+	Over      bool
+	round     []uint
 
 	pending   map[uint]*Card
 	cardevent map[string]map[*Card]Action
@@ -40,19 +41,22 @@ type YGO struct {
 
 func NewYGO(r *agent.Room) *YGO {
 	yg := &YGO{
-		Events:   dispatcher.NewLineEvent(),
-		Room:     r,
-		Cards:    map[uint]*Card{},
-		Survival: map[int]int{},
-		StartAt:  time.Now(),
-		Players:  map[uint]*Player{},
-		both:     map[string]bool{},
-		multi:    map[string]bool{},
+		Events:    dispatcher.NewLineEvent(),
+		Room:      r,
+		cards:     map[uint]*Card{},
+		Survival:  map[int]int{},
+		StartAt:   time.Now(),
+		players:   map[uint]*Player{},
+		both:      map[string]bool{},
+		multi:     map[string]bool{},
+		sesstions: map[uint]*agent.Session{},
 	}
 	yg.Room.ForEach(func(sess *agent.Session) {
 		p := newPlayer(yg)
-		p.session = sess
-		yg.Players[sess.ToUint()] = p
+		//p.session = sess
+		p.sessUniq = sess.ToUint()
+		yg.sesstions[p.sessUniq] = sess
+		yg.players[p.sessUniq] = p
 	})
 
 	return yg
@@ -61,6 +65,12 @@ func NewYGO(r *agent.Room) *YGO {
 //func (yg *YGO) Dispatch(eventName string, args ...interface{}) {
 //	rego.ERR(eventName, args)
 //}
+
+func (yg *YGO) SetCardVer(v *CardVersion) {
+	if yg.cardVer == nil {
+		yg.cardVer = v
+	}
+}
 
 func (yg *YGO) registerBothEvent(eventName string) {
 	yg.both[eventName] = true
@@ -117,23 +127,41 @@ func (yg *YGO) chain(eventName string, ca *Card, pl *Player, args []interface{})
 
 }
 
-func (yg *YGO) GetPlayer(sess *agent.Session) *Player {
-	return yg.Players[sess.ToUint()]
+func (yg *YGO) getPlayer(sess *agent.Session) *Player {
+	return yg.players[sess.ToUint()]
+}
+func (yg *YGO) InitForPlayer(sess *agent.Session, id uint, name string, d *deck) {
+	p := yg.getPlayer(sess)
+	p.name = name
+	p.id = id
+	p.decks = d
+
+}
+
+func (yg *YGO) AddCodeForPlayer(sess *agent.Session, uniq, method uint) {
+	yg.getPlayer(sess).AddCode(uniq, method)
 }
 
 func (yg *YGO) getCard(u uint) (c *Card) {
-	c = yg.Cards[u]
+	c = yg.cards[u]
 	return
 }
 
 func (yg *YGO) registerCards(c *Card) {
-	yg.Cards[c.ToUint()] = c
+	yg.cards[c.ToUint()] = c
 }
 
 func (yg *YGO) forEachPlayer(fun func(*Player)) {
 	for _, v := range yg.round {
-		fun(yg.Players[v])
+		fun(yg.players[v])
 	}
+}
+
+func (yg *YGO) call(method string, reply interface{}, pl *Player) error {
+	return yg.Room.Push(Call{
+		Method: method,
+		Args:   reply,
+	}, yg.sesstions[pl.sessUniq])
 }
 
 func (yg *YGO) callAll(method string, reply interface{}) error {
@@ -145,7 +173,7 @@ func (yg *YGO) callAll(method string, reply interface{}) error {
 }
 
 func (yg *YGO) getPlayerForIndex(i int) *Player {
-	return yg.Players[yg.round[i]]
+	return yg.players[yg.round[i]]
 }
 
 func (yg *YGO) Loop() {
@@ -156,19 +184,19 @@ func (yg *YGO) Loop() {
 	}()
 
 	// 服务端初始化
-	for k, _ := range yg.Players {
+	for k, _ := range yg.players {
 		yg.round = append(yg.round, k)
 	}
 
 	for k, v := range yg.round {
-		ca := yg.Players[v].camp
+		ca := yg.players[v].camp
 		yg.Survival[ca] = yg.Survival[ca] + 1
-		yg.Players[v].index = k
-		yg.Players[v].game = yg
-		yg.Players[v].roundSize = 0
+		yg.players[v].index = k
+		yg.players[v].game = yg
+		yg.players[v].roundSize = 0
 
-		if yg.Players[v].Id == 0 || yg.Players[v].Name == "" {
-			yg.Players[v].Name = "Guest"
+		if yg.players[v].id == 0 || yg.players[v].name == "" {
+			yg.players[v].name = "Guest"
 		}
 	}
 
@@ -177,31 +205,31 @@ func (yg *YGO) Loop() {
 	for _, v := range yg.round {
 		pi := PlayerInit{
 			//Hp:   yg.Players[v].Hp,
-			Name: yg.Players[v].Name,
+			Name: yg.players[v].name,
 		}
 		gi.Users = append(gi.Users, pi)
 	}
 	for _, v := range yg.round {
-		gi.Index = yg.Players[v].index
-		yg.Players[v].call("init", gi)
+		gi.Index = yg.players[v].index
+		yg.players[v].call("init", gi)
 	}
 
 	//nap(10) // 界面初始化
 	i := 31
 	for _, v := range yg.round {
 		i++
-		yg.Players[v].initPlayer(i)
+		yg.players[v].initPlayer(i)
 	}
 
 	//nap(10) // 牌组初始化
 	for _, v := range yg.round {
-		yg.Players[v].initDeck()
+		yg.players[v].initDeck()
 	}
 
 	nap(20) // 手牌初始化
 	for _, v := range yg.round {
-		yg.Players[v].init()
-		yg.Players[v].ChangeHp(4000)
+		yg.players[v].init()
+		yg.players[v].ChangeHp(4000)
 	}
 
 	//必要连锁初始化
@@ -234,16 +262,16 @@ func (yg *YGO) Loop() {
 	}
 
 	yg.Room.LeaveEvent(func(sess *agent.Session) {
-		pl := yg.Players[sess.ToUint()]
-		yg.Current.MsgPub("msg.009", Arg{"rival": pl.Name})
+		pl := yg.players[sess.ToUint()]
+		yg.current.MsgPub("msg.009", Arg{"rival": pl.name})
 		pl.Fail()
 	})
 loop:
 	for {
 		for _, v := range yg.round {
 			nap(5)
-			yg.Current = yg.Players[v]
-			yg.Current.round()
+			yg.current = yg.players[v]
+			yg.current.round()
 			yg.forEachPlayer(func(pl *Player) {
 				if pl.IsFail() {
 					yg.Over = true
@@ -261,5 +289,5 @@ loop:
 
 func (yg *YGO) GameOver() {
 	yg.callAll(over(yg))
-	yg.Current.MsgPub("msg.000", nil)
+	yg.current.MsgPub("msg.000", nil)
 }
