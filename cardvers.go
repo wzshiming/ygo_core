@@ -1,7 +1,5 @@
 package ygo_core
 
-import "errors"
-
 //"rego"
 
 type CardRets struct {
@@ -36,6 +34,13 @@ func (cv *CardVersion) Keys() (c []uint) {
 
 func (cv *CardVersion) Get(id uint) *CardOriginal {
 	return cv.List[id]
+}
+
+func (cv *CardVersion) ListIsAll() (u []uint) {
+	for k, _ := range cv.List {
+		u = append(u, k)
+	}
+	return
 }
 
 func (cv *CardVersion) ListIsValid() (u []uint) {
@@ -112,26 +117,26 @@ func (cv *CardVersion) AllIsValid() (cr CardRets) {
 //	return
 //}
 
-func (cv *CardVersion) Register(co *CardOriginal) error {
+func (cv *CardVersion) IsExist(id uint) bool {
+	return cv.List[id] != nil
+}
+
+func (cv *CardVersion) Register(co *CardOriginal) {
 	if co == nil {
-		return errors.New("RegisterCard: Nil")
+		Debug("RegisterCard: Nil")
+	} else if co.Name == "" {
+		Debug("RegisterCard: Name is empty")
+	} else if co.Id == 0 || cv.List[co.Id] != nil {
+		Debug("RegisterCard: Duplicate ID")
+	} else {
+		cv.List[co.Id] = co
+		return
 	}
-	if co.Name == "" {
-		return errors.New("RegisterCard: Name is empty")
-	}
-	if co.Id == 0 || cv.List[co.Id] != nil {
-		return errors.New("RegisterCard: Duplicate ID")
-	}
-	cv.List[co.Id] = co
+	Debug(co)
 	//cv.nameReg += fmt.Sprintf("~~~%s~~~", co.Name)
 	//cv.nameList[co.Name] = co
 
-	//os.MkdirAll("./img", 0666)
-	//os.MkdirAll("./info", 0666)
-	//exec.Command("cp", fmt.Sprintf("../static/web/static/cards/img/%v.jpg", co.Id), fmt.Sprintf("./img/%v.jpg", co.Id)).Start()
-	//exec.Command("cp", fmt.Sprintf("../static/web/static/cards/i18n/zh-CN/%v.json", co.Id), fmt.Sprintf("./info/%v.json", co.Id)).Start()
-
-	return nil
+	return
 }
 
 func (cv *CardVersion) Sum(cv2 *CardVersion) *CardVersion {

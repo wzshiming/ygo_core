@@ -2,13 +2,15 @@ package ygo_core
 
 // 怪兽区域光环效果生成
 func (ca *Card) EffectMzoneHalo(a Action, f0 interface{}, f1 interface{}) func() {
-	ca.AddEvent(Effect0, f0)
-	ca.AddEvent(Effect1, f1)
+	inflag := "inEffectMzoneHalo"
+	outflag := "outEffectMzoneHalo"
+	ca.AddEvent(inflag, f0)
+	ca.AddEvent(outflag, f1)
 	e0 := func(c *Card) bool {
 		if a.Call(c) {
-			ca.Dispatch(Effect0, c)
+			ca.Dispatch(inflag, c)
 			ca.AddEvent(OutMzone, func() {
-				ca.Dispatch(Effect1, c)
+				ca.Dispatch(outflag, c)
 			}, c)
 		}
 		return true
@@ -60,7 +62,6 @@ func (ca *Card) EffectAccessArea(area ll_type, a Action, f0 interface{}, f1 inte
 		ca.RegisterGlobalListen(Out+string(area), e1)
 		pl.getArea(area).ForEach(e0)
 	}
-
 }
 
 // 怪兽效果 全场怪兽区域 类似光环效果 全场增幅
@@ -71,4 +72,15 @@ func (ca *Card) RegisterAllMzoneHalo(a Action, f0 interface{}, f1 interface{}) {
 // 怪兽效果 区域数量 某个区域存在符合条件的卡牌
 func (ca *Card) RegisterAccessArea(area ll_type, a Action, f0 interface{}, f1 interface{}) {
 	ca.AddEvent(FaceUp, ca.EffectAccessArea(area, a, f0, f1))
+}
+
+// 控制权变更
+func (ca *Card) MzoneControlPower(p *Player) {
+	ca.SetSummoner(p)
+	ca.ToMzone()
+}
+
+// 控制权恢复
+func (ca *Card) MzoneControlRestore() {
+	ca.MzoneControlPower(ca.GetOwner())
 }

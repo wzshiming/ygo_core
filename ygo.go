@@ -8,15 +8,15 @@ import (
 	"github.com/wzshiming/server/agent"
 )
 
-type PlayerInit struct {
+type playerInit struct {
 	//Hp   int    `json:"hp"`
 	Name string `json:"name"`
 }
 
-type GameInitResponse struct {
+type gameInitResponse struct {
 	// user 表示当前游戏中 卡片的id
 	Index int          `json:"index"` //自身的索引
-	Users []PlayerInit `json:"users"`
+	Users []playerInit `json:"users"`
 }
 
 type YGO struct {
@@ -28,7 +28,7 @@ type YGO struct {
 	players   map[uint]*Player
 	sesstions map[uint]*agent.Session
 	current   *Player
-	Survival  map[int]int
+	survival  map[int]int
 	Over      bool
 	round     []uint
 
@@ -44,7 +44,7 @@ func NewYGO(r *agent.Room) *YGO {
 		Events:    dispatcher.NewLineEvent(),
 		Room:      r,
 		cards:     map[uint]*Card{},
-		Survival:  map[int]int{},
+		survival:  map[int]int{},
 		StartAt:   time.Now(),
 		players:   map[uint]*Player{},
 		both:      map[string]bool{},
@@ -53,7 +53,6 @@ func NewYGO(r *agent.Room) *YGO {
 	}
 	yg.Room.ForEach(func(sess *agent.Session) {
 		p := newPlayer(yg)
-		//p.session = sess
 		p.sessUniq = sess.ToUint()
 		yg.sesstions[p.sessUniq] = sess
 		yg.players[p.sessUniq] = p
@@ -81,7 +80,9 @@ func (yg *YGO) registerMultiEvent(eventName string) {
 }
 
 func (yg *YGO) chain(eventName string, ca *Card, pl *Player, args []interface{}) {
+	// 全局连锁中转站
 
+	// 给补上缺省值
 	if ca != nil {
 		flag := true
 		for _, v := range args {
@@ -108,6 +109,7 @@ func (yg *YGO) chain(eventName string, ca *Card, pl *Player, args []interface{})
 		}
 	}
 
+	// 广播全局事件
 	yg.EmptyEvent(Chain)
 	yg.Dispatch(eventName, args...)
 
@@ -117,6 +119,8 @@ func (yg *YGO) chain(eventName string, ca *Card, pl *Player, args []interface{})
 			cs.EndPush(v)
 		}
 	})
+
+	// 等待用户回应
 	if cs.Len() > 0 || yg.both[eventName] {
 		pl.chain(eventName, ca, cs, args)
 		if ca != nil && ca.IsValid() {
@@ -130,6 +134,7 @@ func (yg *YGO) chain(eventName string, ca *Card, pl *Player, args []interface{})
 func (yg *YGO) getPlayer(sess *agent.Session) *Player {
 	return yg.players[sess.ToUint()]
 }
+
 func (yg *YGO) InitForPlayer(sess *agent.Session, id uint, name string, d *deck) {
 	p := yg.getPlayer(sess)
 	p.name = name
@@ -190,7 +195,7 @@ func (yg *YGO) Loop() {
 
 	for k, v := range yg.round {
 		ca := yg.players[v].camp
-		yg.Survival[ca] = yg.Survival[ca] + 1
+		yg.survival[ca] = yg.survival[ca] + 1
 		yg.players[v].index = k
 		yg.players[v].game = yg
 		yg.players[v].roundSize = 0
@@ -201,9 +206,9 @@ func (yg *YGO) Loop() {
 	}
 
 	// 客户端初始化
-	gi := GameInitResponse{}
+	gi := gameInitResponse{}
 	for _, v := range yg.round {
-		pi := PlayerInit{
+		pi := playerInit{
 			//Hp:   yg.Players[v].Hp,
 			Name: yg.players[v].name,
 		}
@@ -229,7 +234,7 @@ func (yg *YGO) Loop() {
 	nap(20) // 手牌初始化
 	for _, v := range yg.round {
 		yg.players[v].init()
-		yg.players[v].ChangeHp(4000)
+		yg.players[v].ChangeLp(4000)
 	}
 
 	//必要连锁初始化
@@ -288,6 +293,7 @@ loop:
 }
 
 func (yg *YGO) GameOver() {
+	defer DebugStack()
 	yg.callAll(over(yg))
 	yg.current.MsgPub("msg.000", nil)
 }

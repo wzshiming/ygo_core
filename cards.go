@@ -7,6 +7,7 @@ import (
 type Cards []*Card
 
 func NewCards(ci ...interface{}) (css *Cards) {
+	// 这是一个神奇的组合加过滤的函数
 	css = &Cards{}
 	if len(ci) == 0 {
 		return
@@ -166,5 +167,5 @@ func (cp *Cards) Find(fun func(*Card) bool) (cs *Cards) {
 }
 
 func (cp *Cards) Random() *Card {
-	return cp.Remove(int(<-base.LCG) % cp.Len())
+	return cp.Remove(RandInt(cp.Len()))
 }

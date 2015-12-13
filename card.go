@@ -68,6 +68,11 @@ func (ca *Card) Peek() {
 	pl.call(exprCard(ca, LE_FaceUpAttack))
 	pl.GetTarget().call(exprCard(ca, LE_FaceDownAttack))
 }
+
+func (ca *Card) PeekFor(p *Player) {
+	p.call(setFront(ca))
+}
+
 func (ca *Card) IsCanDirect() bool {
 	return ca.direct
 }
@@ -112,13 +117,24 @@ func (ca *Card) Priority() int {
 
 func (ca *Card) Dispatch(eventName string, args ...interface{}) {
 	yg := ca.GetSummoner().Game()
-	if Pay != eventName && Chain != eventName {
-		ca.Events.Dispatch(Pay, eventName)
-		if ca.IsOpen(eventName) {
-			yg.chain(eventName, ca, ca.GetSummoner(), args)
-		}
+	if ca.Events.IsOpen(eventName) {
+		ca.Events.Dispatch(Pre+eventName, eventName)
 	}
-	ca.Events.Dispatch(eventName, args...)
+	//	if Pay != eventName && Chain != eventName {
+	//		//ca.Events.Dispatch(Pay, eventName)
+
+	//		if ca.IsOpen(eventName) {
+	//			yg.chain(eventName, ca, ca.GetSummoner(), args)
+	//		}
+	//	}
+	if ca.Events.IsOpen(eventName) {
+		yg.chain(eventName, ca, ca.GetSummoner(), args)
+
+	}
+	if ca.Events.IsOpen(eventName) {
+		ca.Events.Dispatch(eventName, args...)
+		ca.Events.Dispatch(Suf+eventName, eventName)
+	}
 }
 
 func (ca *Card) GetPlace() *Group {
@@ -577,8 +593,12 @@ func (ca *Card) ToSzone() {
 }
 
 // 移动到卡组
-func (ca *Card) ToDeck() {
+func (ca *Card) ToDeckTop() {
 	ca.GetOwner().Deck().EndPush(ca)
+}
+
+func (ca *Card) ToDeckBot() {
+	ca.GetOwner().Deck().BeginPush(ca)
 }
 
 // 移动到场地
@@ -755,11 +775,6 @@ func (ca *Card) RaceIsDivineBeast() bool {
 	return ca.original.Lr == LR_DivineBeast
 }
 
-////创造神族
-//func (ca *Card) RaceIsCreatorGod() bool {
-//	return ca.original.Lr == LR_CreatorGod
-//}
-
 //地
 func (ca *Card) AttrIsEarth() bool {
 	return ca.original.La == LA_Earth
@@ -793,4 +808,24 @@ func (ca *Card) AttrIsDark() bool {
 //神
 func (ca *Card) AttrIsDevine() bool {
 	return ca.original.La == LA_Devine
+}
+
+// 被破坏
+func (ca *Card) Destroy(c *Card) {
+	ca.Dispatch(Destroy, c)
+}
+
+// 被支付
+func (ca *Card) Cost(c *Card) {
+	ca.Dispatch(Cost, c)
+}
+
+// 被丢弃
+func (ca *Card) Discard(c *Card) {
+	ca.Dispatch(Discard, c)
+}
+
+// 被移除
+func (ca *Card) Removed(c *Card) {
+	ca.Dispatch(Removed, c)
 }

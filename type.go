@@ -198,4 +198,6 @@ const (
 	LO_Puppet        lo_type = "Puppet"
 	LO_Equip         lo_type = "Equip"
 	LO_Fusion        lo_type = "Fusion"
+	LO_JoinDeckBot   lo_type = "JoinDeckBot"
+	LO_PutBack       lo_type = "PutBack"
 )
