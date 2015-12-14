@@ -52,6 +52,8 @@ func (cv *CardVersion) ListIsValid() (u []uint) {
 	return
 }
 
+
+
 func (cv *CardVersion) AllIsValid() (cr CardRets) {
 	for k, v := range cv.List {
 		if v.IsValid {

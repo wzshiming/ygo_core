@@ -126,6 +126,10 @@ func (pl *Player) Szone() *Group {
 	return pl.getArea(LL_Szone)
 }
 
+func (pl *Player) SzoneAndField() *Cards {
+	return NewCards(pl.Szone(), pl.Field())
+}
+
 func (pl *Player) Grave() *Group {
 	return pl.getArea(LL_Grave)
 }
@@ -343,9 +347,9 @@ func (pl *Player) main(lp lp_type) {
 			}, LO_Cover, pl.Hand(), func(c *Card) bool {
 				//在手牌的陷阱卡
 				return c.IsTrap()
-			}, LO_Onset, pl.Szone(), func(c *Card) bool {
+			}, LO_Onset, pl.SzoneAndField(), func(c *Card) bool {
 				//在魔陷区为发动的魔法卡
-				return c.IsSpell() && c.IsFaceDown()
+				return c.IsSpell() && c.IsFaceDown() && !c.IsSpellQuickPlay()
 			}, LO_Expres, pl.Mzone(), func(c *Card) bool {
 				//在怪兽区还可以改变表示形式的怪兽卡
 				return c.IsMonster() && c.IsCanChange()
@@ -535,6 +539,16 @@ func (pl *Player) DrawCard(s int) {
 		pl.Hand().EndPush(t)
 	}
 	pl.Dispatch(Draw, pl)
+}
+
+// 是当前的回合者
+func (pl *Player) IsCurrent() bool {
+	return pl == pl.game.current
+}
+
+// 获得当前回合者
+func (pl *Player) GetCurrent() *Player {
+	return pl.game.current
 }
 
 func (pl *Player) call(method string, reply interface{}) error {

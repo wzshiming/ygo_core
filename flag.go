@@ -87,4 +87,6 @@ const (
 	UseSpell = "UseSpell" // 使用魔法卡
 	UseTrap  = "UseTrap"  // 使用陷阱卡
 
+	//特殊 事件
+	flashSpellEquip = "flashSpellEquip"
 )

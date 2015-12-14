@@ -37,6 +37,7 @@ type YGO struct {
 
 	both  map[string]bool
 	multi map[string]bool
+	quick map[*Card]bool
 }
 
 func NewYGO(r *agent.Room) *YGO {
@@ -49,6 +50,7 @@ func NewYGO(r *agent.Room) *YGO {
 		players:   map[uint]*Player{},
 		both:      map[string]bool{},
 		multi:     map[string]bool{},
+		quick:     map[*Card]bool{},
 		sesstions: map[uint]*agent.Session{},
 	}
 	yg.Room.ForEach(func(sess *agent.Session) {
@@ -120,6 +122,15 @@ func (yg *YGO) chain(eventName string, ca *Card, pl *Player, args []interface{})
 		}
 	})
 
+	// 速攻
+	if yg.both[eventName] || yg.multi[eventName] {
+		for k, _ := range yg.quick {
+			if !(k.GetSummoner().IsCurrent() || yg.multi[eventName]) {
+				cs.EndPush(k)
+			}
+		}
+	}
+
 	// 等待用户回应
 	if cs.Len() > 0 || yg.both[eventName] {
 		pl.chain(eventName, ca, cs, args)
@@ -129,6 +140,14 @@ func (yg *YGO) chain(eventName string, ca *Card, pl *Player, args []interface{})
 	}
 	yg.EmptyEvent(Chain)
 
+}
+
+func (yg *YGO) registerQuickPlay(c *Card) {
+	yg.quick[c] = true
+}
+
+func (yg *YGO) unregisterQuickPlay(c *Card) {
+	delete(yg.quick, c)
 }
 
 func (yg *YGO) getPlayer(sess *agent.Session) *Player {
@@ -234,7 +253,7 @@ func (yg *YGO) Loop() {
 	nap(20) // 手牌初始化
 	for _, v := range yg.round {
 		yg.players[v].init()
-		yg.players[v].ChangeLp(4000)
+		yg.players[v].ChangeLp(8000)
 	}
 
 	//必要连锁初始化
@@ -244,10 +263,10 @@ func (yg *YGO) Loop() {
 	yg.registerBothEvent(Declaration)
 	yg.registerBothEvent(UseTrap)
 	yg.registerBothEvent(UseSpell)
-	yg.registerMultiEvent(DP)
+	//yg.registerMultiEvent(DP)
 	yg.registerMultiEvent(SP)
 	yg.registerMultiEvent(MP)
-	yg.registerMultiEvent(EP)
+	//yg.registerMultiEvent(EP)
 
 	nap(10) // 游戏开始
 

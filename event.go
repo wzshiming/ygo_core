@@ -2,7 +2,7 @@ package ygo_core
 
 func (ca *Card) Init() {
 	ca.Empty()
-	ca.original = *ca.baseOriginal
+	ca.CardOriginal = *ca.baseOriginal
 	ca.isValid = true
 	ca.SetNotDirect()
 	ca.RecoverSummoner()
@@ -12,8 +12,9 @@ func (ca *Card) Init() {
 
 func (ca *Card) registerNormal() {
 
-	// 进入墓地和 移除时 卡牌翻面
+	// 进入额外和 移除时 卡牌翻面
 	ca.AddEvent(InExtra, ca.SetFaceUpAttack)
+	ca.AddEvent(InGrave, ca.SetFaceUpAttack)
 
 	// 破坏
 	ca.AddEvent(Destroy, func(c *Card) {
@@ -67,10 +68,6 @@ func (ca *Card) registerNormal() {
 		//ca.isValid = false
 	})
 
-	// 进入墓地和除外
-	ca.AddEvent(InGrave, ca.SetFaceUpAttack)
-	//ca.AddEvent(InRemoved, ca.SetFaceUpAttack)
-
 	// 被移除
 	ca.AddEvent(Removed, func() {
 		pl := ca.GetSummoner()
@@ -105,6 +102,7 @@ func (ca *Card) registerNormal() {
 		})
 
 		if ca.IsExtra() {
+			ca.AddEvent(InDeck, ca.ToExtra)
 			ca.AddEvent(InHand, ca.ToExtra)
 		}
 
@@ -116,69 +114,48 @@ func (ca *Card) registerNormal() {
 
 func (ca *Card) registerSpellAndTrap() {
 	e := func(s string) {
-		if s != Onset && s != Cover {
-			return
-		}
+
 		pl := ca.GetSummoner()
-		ca.ToSzone()
-		if ca.IsInSzone() {
+		if ca.IsSpellField() {
+			ca.ToField()
+		} else {
+			ca.ToSzone()
+		}
+
+		if ca.IsInSzone() || ca.IsInField() {
 			ca.SetFaceDownAttack()
 			pl.Msg("021", Arg{"self": ca.ToUint()})
 		} else {
 			ca.StopOnce(s)
 		}
 	}
-	ca.Range(InHand, OutHand, Arg{
+	ca.OnHand(Arg{
 		// 代价 先覆盖
 		Pre + Onset: e,
 		Pre + Cover: e,
 	})
 }
 
-//func (ca *Card) RegisterSpellQuickPlay(event string, e interface{}) {
-//	rFlag := "registerSpellQuickPlay"
-//	ca.AddEventPre(UseSpell, func() {
-//		ca.SetFaceUp()
-//		pl := ca.GetSummoner()
-//		pl.MsgPub("msg.022", Arg{"self": ca.ToUint()})
-//	})
-
-//	ca.AddEvent(Onset, func() {
-//		ca.Dispatch(UseSpell)
-//	})
-//	ca.AddEvent(rFlag, e)
-//	ca.AddEvent(UseSpell, func() {
-//		pl := ca.GetSummoner()
-//		if ca.IsValid() {
-//			ca.Dispatch(rFlag)
-//			pl.MsgPub("msg.023", Arg{"self": ca.ToUint()})
-//			ca.Dispatch(Depleted)
-//		} else {
-//			pl.MsgPub("msg.024", Arg{"self": ca.ToUint()})
-//		}
-//	})
-
-//	ca.AddEvent(InSzone, func() {
-//		pl := ca.GetSummoner()
-//		pl.OnlyOnce(RoundEnd, func() {
-//			ca.registerIgnitionSelector(event, e, UseSpell)
-//		}, ca, event, e)
-//	}, event, e)
-//}
-
 // 注册一张魔法卡
 func (ca *Card) registerSpell(e interface{}, only bool) {
 	rFlag := "registerSpell"
+
+	// 注册 魔法卡发动前先翻开
 	ca.AddEventPre(UseSpell, func() {
 		ca.SetFaceUp()
 		pl := ca.GetSummoner()
 		pl.MsgPub("msg.022", Arg{"self": ca.ToUint()})
 	})
 
+	// 注册 使用 为 发动魔法卡
 	ca.AddEvent(Onset, func() {
 		ca.Dispatch(UseSpell)
 	})
+
+	// 注册魔法卡效果
 	ca.AddEvent(rFlag, e)
+
+	// 注册魔法卡 发动魔法效果前后判断 如果符合则调用 魔法卡效果
 	ca.AddEvent(UseSpell, func() {
 		pl := ca.GetSummoner()
 		if ca.IsValid() {
@@ -204,6 +181,10 @@ func (ca *Card) RegisterSpellNormal(e interface{}) {
 	ca.registerSpell(e, true)
 }
 
+func (ca *Card) RegisterSpellField(e interface{}) {
+	ca.registerSpell(e, false)
+}
+
 // 卡牌注册一个事件触发器 如果触发则发送给另一个事件
 func (ca *Card) registerIgnitionSelector(event string, e interface{}, toevent string) {
 	ca.RegisterGlobalListen(event, e)
@@ -225,19 +206,24 @@ func (ca *Card) RegisterIgnitionSelector(event string, e interface{}) {
 
 // 注册一张陷阱卡
 func (ca *Card) registerTrap(event string, e interface{}, only bool) {
-	ca.AddEventPre(UseTrap, func() {
 
+	// 注册陷阱卡 发动前先翻开
+	ca.AddEventPre(UseTrap, func() {
 		ca.SetFaceUp()
 		pl := ca.GetSummoner()
 		pl.MsgPub("msg.022", Arg{"self": ca.ToUint()})
 	})
+
+	//注册 陷阱卡 放置后的事件
 	ca.AddEvent(InSzone, func() {
 		pl := ca.GetSummoner()
+		//注册 下回合才能 连锁事件
 		pl.OnlyOnce(RoundEnd, func() {
 			ca.registerIgnitionSelector(event, e, UseTrap)
 		}, ca, event, e)
 	}, event, e)
 
+	//注册 陷阱卡发动事件
 	ca.AddEvent(UseTrap, func() {
 		pl := ca.GetSummoner()
 		if ca.IsValid() {
@@ -328,6 +314,44 @@ func (ca *Card) RegisterSpellEquip(a Action, f1 interface{}, f2 interface{}) {
 	ca.AddEvent(outFlag, f2)
 }
 
+// 注册一张速攻魔法卡
+func (ca *Card) RegisterSpellQuickPlay(e interface{}) {
+	ca.RegisterSpellNormal(e)
+
+	ca.AddEvent(Trigger, UseSpell)
+	ca.AddEvent(InHand, func() {
+		pl := ca.GetSummoner()
+		yg := pl.game
+		if pl.IsCurrent() {
+			yg.registerQuickPlay(ca)
+		}
+		ca.RegisterGlobalListen(SP, func(pl0 *Player) {
+			pl := ca.GetSummoner()
+			if pl0 == pl {
+				yg.registerQuickPlay(ca)
+			} else {
+				yg.unregisterQuickPlay(ca)
+			}
+		})
+		ca.OnlyOnce(OutHand, func() {
+			ca.UnregisterAllGlobalListen()
+			yg.unregisterQuickPlay(ca)
+		})
+	})
+
+	ca.AddEvent(InSzone, func() {
+		//注册 下回合才能 连锁事件
+		pl := ca.GetSummoner()
+		pl.OnlyOnce(RoundEnd, func() {
+			yg := pl.game
+			yg.registerQuickPlay(ca)
+			ca.OnlyOnce(OutSzone, func() {
+				yg.unregisterQuickPlay(ca)
+			})
+		}, ca, e)
+	})
+}
+
 func (ca *Card) AddEventPre(event string, f interface{}, token ...interface{}) {
 	ca.AddEvent(Pre+event, f, token...)
 }
@@ -347,7 +371,7 @@ func (ca *Card) RegisterMonsterFusion(names ...string) {
 	for _, v := range names {
 		h[v]++
 	}
-	ca.Range(InExtra, OutExtra, Arg{
+	ca.OnExtra(Arg{
 		Pre + SummonFusion: func(s string) {
 			pl := ca.GetSummoner()
 			se := NewCards()
@@ -397,15 +421,15 @@ func (ca *Card) registerMonster() {
 		ca.Dispatch(Summon)
 	})
 
-	// 召唤 特殊召唤 翻转召唤 设置卡片正面朝上攻击表示
+	// 召唤 特殊召唤 翻转召唤 设置卡片正面朝上攻击表示 不变
 	ca.AddEventPre(SummonSpecial, ca.SetFaceUpAttack)
 	ca.AddEventPre(SummonFlip, ca.SetFaceUpAttack)
 	ca.AddEventPre(Summon, ca.SetFaceUpAttack)
 
-	// 翻转 设置卡片正面朝上
+	// 翻转 设置卡片正面朝上 不变
 	ca.AddEventPre(Flip, ca.SetFaceUp)
 
-	// 特殊召唤
+	// 特殊召唤  不变
 	ca.AddEvent(SummonSpecial, func() {
 		pl := ca.GetSummoner()
 		ca.ToMzone()
@@ -422,10 +446,11 @@ func (ca *Card) registerMonster() {
 
 	// 正面朝上时和改变属性时显示属性
 	ca.AddEvent(Change, func() {
-		if ca.IsFaceUp() {
+		if ca.IsFaceUp() && ca.IsInMzone() {
 			ca.ShowInfo()
 		}
 	})
+
 	ca.AddEvent(FaceUp, ca.ShowInfo)
 
 	e := func(s string) {
@@ -453,7 +478,7 @@ func (ca *Card) registerMonster() {
 		pl.SetNotCanSummon()
 	}
 	// 手牌
-	ca.Range(InHand, OutHand, Arg{
+	ca.OnHand(Arg{
 		// 代价
 		Pre + Summon: e,
 		Pre + Cover:  e,
@@ -474,7 +499,7 @@ func (ca *Card) registerMonster() {
 		},
 	})
 
-	ca.Range(InMzone, OutMzone, Arg{
+	ca.OnMzone(Arg{
 		// 被解放
 		Freedom: func(c *Card, i *int) {
 			pl := ca.GetSummoner()
