@@ -4,6 +4,7 @@ type event string
 
 const (
 	// 玩家事件  注意玩家事件没有 之前之后 的前缀符
+	None       = ""
 	RoundBegin = "RoundBegin" // 回合开始之前
 	DP         = "DP"         // 抽排阶段
 	SP         = "SP"         // 预备阶段
@@ -23,6 +24,7 @@ const (
 	//标识符
 	Pre  = "Rre"  // 之前
 	Suf  = "Suf"  // 之后
+	Used = "Used" // 使用后
 	Bear = "Bear" // 被
 	In   = "In"   // 进入
 	Out  = "Out"  // 离开
@@ -61,22 +63,24 @@ const (
 	Freedom         = "Freedom"         // 解放
 
 	// 卡牌事件
-	InDeck     = In + string(LL_Deck)     // 进入卡组
-	OutDeck    = Out + string(LL_Deck)    // 离开卡组
-	InHand     = In + string(LL_Hand)     // 进入手牌
-	OutHand    = Out + string(LL_Hand)    // 离开手牌
-	InMzone    = In + string(LL_Mzone)    // 进入怪兽区
-	OutMzone   = Out + string(LL_Mzone)   // 离开怪兽区
-	InSzone    = In + string(LL_Szone)    // 进入魔陷区
-	OutSzone   = Out + string(LL_Szone)   // 离开魔陷区
-	InGrave    = In + string(LL_Grave)    // 进入墓地
-	OutGrave   = Out + string(LL_Grave)   // 离开墓地
-	InRemoved  = In + string(LL_Removed)  // 进入移除
-	OutRemoved = Out + string(LL_Removed) // 离开移除
-	InExtra    = In + string(LL_Extra)    // 进入额外
-	OutExtra   = Out + string(LL_Extra)   // 离开额外
-	InField    = In + string(LL_Field)    // 进入场地
-	OutField   = Out + string(LL_Field)   // 离开场地
+	InDeck      = In + string(LL_Deck)      // 进入卡组
+	OutDeck     = Out + string(LL_Deck)     // 离开卡组
+	InHand      = In + string(LL_Hand)      // 进入手牌
+	OutHand     = Out + string(LL_Hand)     // 离开手牌
+	InMzone     = In + string(LL_Mzone)     // 进入怪兽区
+	OutMzone    = Out + string(LL_Mzone)    // 离开怪兽区
+	InSzone     = In + string(LL_Szone)     // 进入魔陷区
+	OutSzone    = Out + string(LL_Szone)    // 离开魔陷区
+	InGrave     = In + string(LL_Grave)     // 进入墓地
+	OutGrave    = Out + string(LL_Grave)    // 离开墓地
+	InRemoved   = In + string(LL_Removed)   // 进入移除
+	OutRemoved  = Out + string(LL_Removed)  // 离开移除
+	InExtra     = In + string(LL_Extra)     // 进入额外
+	OutExtra    = Out + string(LL_Extra)    // 离开额外
+	InField     = In + string(LL_Field)     // 进入场地
+	OutField    = Out + string(LL_Field)    // 离开场地
+	InPortrait  = In + string(LL_Portrait)  // 进入角色卡
+	OutPortrait = Out + string(LL_Portrait) // 离开角色卡
 
 	//BearDestroy = Bear + Destroy // 卡牌被破坏时向被破坏的卡牌发出
 
@@ -84,9 +88,14 @@ const (
 	UnregisterAllGlobalListen = "UnregisterGlobalListen" // 注销全局事件监听
 
 	// 由卡牌发出
-	UseSpell = "UseSpell" // 使用魔法卡
-	UseTrap  = "UseTrap"  // 使用陷阱卡
+	CheckSpell = "CheckSpell"
+	UseSpell   = "UseSpell" // 使用魔法卡
+	CheckTrap  = "CheckTrap"
+	UseTrap    = "UseTrap" // 使用陷阱卡
 
-	//特殊 事件
-	flashSpellEquip = "flashSpellEquip"
+	Equip       = "Equip"
+	EquipTarget = "EquipTarget"
+	EquipMissed = "EquipMissed"
+	EquipFlash  = "EquipFlash"
+	EquipList   = "EquipList"
 )

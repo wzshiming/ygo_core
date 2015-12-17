@@ -37,7 +37,8 @@ type YGO struct {
 
 	both  map[string]bool
 	multi map[string]bool
-	quick map[*Card]bool
+
+	eventSize uint
 }
 
 func NewYGO(r *agent.Room) *YGO {
@@ -50,7 +51,6 @@ func NewYGO(r *agent.Room) *YGO {
 		players:   map[uint]*Player{},
 		both:      map[string]bool{},
 		multi:     map[string]bool{},
-		quick:     map[*Card]bool{},
 		sesstions: map[uint]*agent.Session{},
 	}
 	yg.Room.ForEach(func(sess *agent.Session) {
@@ -81,9 +81,13 @@ func (yg *YGO) registerMultiEvent(eventName string) {
 	yg.multi[eventName] = true
 }
 
+func (yg *YGO) GetEventUniq() uint {
+	return yg.eventSize
+}
+
 func (yg *YGO) chain(eventName string, ca *Card, pl *Player, args []interface{}) {
 	// 全局连锁中转站
-
+	yg.eventSize++
 	// 给补上缺省值
 	if ca != nil {
 		flag := true
@@ -110,44 +114,35 @@ func (yg *YGO) chain(eventName string, ca *Card, pl *Player, args []interface{})
 			args = append(args, pl)
 		}
 	}
-
-	// 广播全局事件
-	yg.EmptyEvent(Chain)
-	yg.Dispatch(eventName, args...)
-
 	cs := NewCards()
-	yg.ForEventEach(Chain, func(i interface{}) {
-		if v, ok := i.(*Card); ok {
-			cs.EndPush(v)
-		}
-	})
+	// 广播全局事件
+	e := func() {
+		cs.Clear()
+		yg.EmptyEvent(Chain)
+		yg.Dispatch(eventName, args...)
 
-	// 速攻
-	if yg.both[eventName] || yg.multi[eventName] {
-		for k, _ := range yg.quick {
-			if !(k.GetSummoner().IsCurrent() || yg.multi[eventName]) {
-				cs.EndPush(k)
+		yg.ForEventEach(Chain, func(n string, i interface{}) {
+			if v, ok := i.(*Card); ok {
+				cs.EndPush(v)
 			}
-		}
+		})
 	}
+	e()
 
 	// 等待用户回应
 	if cs.Len() > 0 || yg.both[eventName] {
-		pl.chain(eventName, ca, cs, args)
+		for pl.chain(eventName, ca, cs, args) && yg.multi[eventName] {
+			e()
+		}
 		if ca != nil && ca.IsValid() {
-			pl.GetTarget().chain(eventName, ca, cs, args)
+			for pl.GetTarget().chain(eventName, ca, cs, args) && yg.multi[eventName] {
+				e()
+			}
+			//pl.GetTarget().chain(eventName, ca, cs, args)
 		}
 	}
 	yg.EmptyEvent(Chain)
 
-}
-
-func (yg *YGO) registerQuickPlay(c *Card) {
-	yg.quick[c] = true
-}
-
-func (yg *YGO) unregisterQuickPlay(c *Card) {
-	delete(yg.quick, c)
 }
 
 func (yg *YGO) getPlayer(sess *agent.Session) *Player {

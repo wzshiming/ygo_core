@@ -1,77 +1,140 @@
 package ygo_core
 
-// 怪兽区域光环效果生成
-func (ca *Card) EffectMzoneHalo(a Action, f0 interface{}, f1 interface{}) func() {
-	inflag := "inEffectMzoneHalo"
-	outflag := "outEffectMzoneHalo"
-	ca.AddEvent(inflag, f0)
-	ca.AddEvent(outflag, f1)
-	e0 := func(c *Card) bool {
-		if a.Call(c) {
-			ca.Dispatch(inflag, c)
-			ca.AddEvent(OutMzone, func() {
-				ca.Dispatch(outflag, c)
-			}, c)
-		}
-		return true
-	}
+// 魔法卡 定义事件
 
-	e := func() {
+func (ca *Card) PushSpell(lo lo_type, e interface{}) {
+	ca.PushChain(lo, func() {
+		ca.Dispatch(UseSpell)
+	})
+	ca.AddEvent(UseSpell, e)
+}
+
+// 不是通常魔法 使用完不送墓地  有发动条件 需要PushSpell
+func (ca *Card) RegisterSpellUnnormal(e interface{}) {
+	ca.AddEvent(CheckSpell, e)
+}
+
+// 不是通常魔法 使用完不送墓地  没有发动条件
+func (ca *Card) RegisterSpellUnnormalPush(lo lo_type, e interface{}) {
+	ca.RegisterSpellUnnormal(func() {
+		ca.PushSpell(lo, e)
+	})
+}
+
+// 通常魔法 使用完就送墓地  有发动条件 需要PushSpell
+func (ca *Card) RegisterSpellNormal(e interface{}) {
+	ca.RegisterSpellUnnormal(e)
+	ca.AddEventUsed(UseSpell, func() {
+		ca.Depleted(ca)
+	})
+}
+
+// 通常魔法 使用完就送墓地  没有发动条件
+func (ca *Card) RegisterSpellNormalPuah(lo lo_type, e interface{}) {
+	ca.RegisterSpellNormal(func() {
+		ca.PushSpell(lo, e)
+	})
+}
+
+//func (ca *Card) PushSpellEquip(css *Cards, e0 interface{}) {
+//	flag := "pushSpellEquip"
+//	ca.PushSpell(LO_Equip, func() {
+//		pl := ca.GetSummoner()
+//		if c := pl.SelectRequired(LO_Equip, css); c != nil {
+
+//			ca.Range(flag, Disabled, Arg{
+//				Equip:       e0,
+//				EquipTarget: c,
+//				EquipMissed: func() {
+//					if ca.EventSize(EquipTarget) == 0 {
+//						ca.Depleted(c)
+//					}
+//				},
+//			})
+
+//			ca.RangeForOther(c, flag, Disabled, Arg{
+//				EquipList: ca,
+//				OutMzone: func() {
+//					ca.RemoveEvent(EquipTarget, c)
+//					ca.Dispatch(EquipMissed)
+//				},
+//			})
+//			ca.Dispatch(flag)
+//			c.Dispatch(EquipFlash)
+//		}
+
+//	})
+//}
+
+// 装备魔法  有发动条件 需要PushSpellEquip
+func (ca *Card) RegisterSpellEquip(e interface{}) {
+	ca.RegisterSpellUnnormal(e)
+}
+
+func (ca *Card) registerSpellEquipEffect(a Action, e func(*Card), b func(*Card)) {
+	ca.RegisterSpellEquip(func() {
 		pl := ca.GetSummoner()
 		tar := pl.GetTarget()
-		cs := NewCards(tar.Mzone(), pl.Mzone())
-		cs.ForEach(e0)
-		ca.RegisterGlobalListen(InMzone, e0)
-	}
-	return e
+		css := NewCards(pl.Mzone(), tar.Mzone(), func(c0 *Card) bool {
+			return c0.IsFaceUp() && a.Call(c0)
+		})
+		if css.Len() != 0 {
+			e0 := func(c0 *Card) {
+				if a.Call(c0) {
+					e(c0)
+				} else {
+					ca.Destroy(c0)
+				}
+			}
+
+			ca.PushSpell(LO_Equip, func() {
+				pl := ca.GetSummoner()
+				if c := pl.SelectRequired(LO_Equip, css); c != nil {
+
+					ca.Range("", Disabled, Arg{
+						Equip:       e0,
+						EquipTarget: c,
+						EquipMissed: func() {
+							if ca.EventSize(EquipTarget) == 0 {
+								ca.Depleted(c)
+							}
+						},
+					})
+
+					ca.RangeForOther(c, "", Disabled, Arg{
+						EquipList: ca,
+						OutMzone: func() {
+							ca.RemoveEvent(EquipTarget, c)
+							ca.Dispatch(EquipMissed)
+						},
+					})
+
+					if b != nil {
+						b(c)
+					}
+					c.Dispatch(EquipFlash)
+				}
+
+			})
+		}
+	})
 }
 
-// 出入区域效果生成
-func (ca *Card) EffectAccessArea(area ll_type, a Action, f0 interface{}, f1 interface{}) func() {
-	inflag := "inEffectAccessArea"
-	outflag := "outEffectAccessArea"
-	ca.AddEvent(inflag, f0)
-	ca.AddEvent(outflag, f1)
-	e0 := func(c *Card) bool {
-		if a.Call(c) {
-			ca.Dispatch(inflag, c)
-		}
-		return true
-	}
-	e1 := func(c *Card) bool {
-		if a.Call(c) {
-			ca.Dispatch(outflag, c)
-		}
-		return true
-	}
-
-	if area == LL_Mzone {
-		return func() {
-			pl := ca.GetSummoner()
-			tar := pl.GetTarget()
-			cs := NewCards(tar.Mzone(), pl.Mzone())
-			cs.ForEach(e0)
-			ca.RegisterGlobalListen(FaceUp, e0)
-			ca.RegisterGlobalListen(OutMzone, e1)
-		}
-	}
-
-	return func() {
-		pl := ca.GetSummoner()
-		ca.RegisterGlobalListen(In+string(area), e0)
-		ca.RegisterGlobalListen(Out+string(area), e1)
-		pl.getArea(area).ForEach(e0)
-	}
+// 装备魔法  封装的效果1  条件判断 和 装备效果
+func (ca *Card) RegisterSpellEquipEffect1(a Action, e func(*Card)) {
+	ca.registerSpellEquipEffect(a, e, nil)
 }
 
-// 怪兽效果 全场怪兽区域 类似光环效果 全场增幅
-func (ca *Card) RegisterAllMzoneHalo(a Action, f0 interface{}, f1 interface{}) {
-	ca.AddEvent(FaceUp, ca.EffectMzoneHalo(a, f0, f1))
-}
-
-// 怪兽效果 区域数量 某个区域存在符合条件的卡牌
-func (ca *Card) RegisterAccessArea(area ll_type, a Action, f0 interface{}, f1 interface{}) {
-	ca.AddEvent(FaceUp, ca.EffectAccessArea(area, a, f0, f1))
+// 装备魔法  封装的效果2  条件判断 和 装备效果
+func (ca *Card) RegisterSpellEquipEffect2(a Action, e func(*Card), event string, eve func(*Card)) {
+	ca.registerSpellEquipEffect(a, e, func(c *Card) {
+		ca.RangeGlobal("", Disabled, Arg{
+			event: func() {
+				eve(c)
+				c.Dispatch(EquipFlash)
+			},
+		})
+	})
 }
 
 // 控制权变更

@@ -16,6 +16,7 @@ type Player struct {
 	decks    *deck  //卡组数据
 	sessUniq uint   // 会话
 	phases   lp_type
+	tophases lp_type
 
 	// 规则属性
 	index     int           // 玩家索引
@@ -41,6 +42,8 @@ type Player struct {
 
 	// 回合中
 	rounding bool
+	noskip   bool
+
 	// 是否失败
 	fail bool
 }
@@ -97,12 +100,6 @@ func newPlayer(yg *YGO) *Player {
 		pl.rounding = false
 	})
 
-	pl.AddEvent(DP, pl.draw)
-	//pl.AddEvent(SP, pl.standby)
-	pl.AddEvent(MP, pl.main)
-	pl.AddEvent(BP, pl.battle)
-	pl.AddEvent(EP, pl.end)
-
 	pl.AddEvent(ChangeLp, pl.changeLp)
 	return pl
 }
@@ -158,8 +155,9 @@ func (pl *Player) Dispatch(eventName string, args ...interface{}) {
 	yg := pl.Game()
 	if pl.IsOpen(eventName) {
 		yg.chain(eventName, nil, pl, append(args))
+		pl.Events.Dispatch(eventName, args...)
 	}
-	pl.Events.Dispatch(eventName, args...)
+
 }
 
 func (pl *Player) Game() *YGO {
@@ -208,11 +206,10 @@ func (pl *Player) ForEachPlayer(fun func(p *Player)) {
 }
 
 func (pl *Player) chain(eventName string, ca *Card, cs *Cards, a []interface{}) bool {
-
+	pl.noskip = true
 	t := pl.phases
 	r := pl.passTime
-	defer DebugStack()
-
+	//defer DebugStack()
 	// 储存连锁前的时间和阶段
 	// 连锁结束后恢复
 	defer func() {
@@ -224,63 +221,62 @@ func (pl *Player) chain(eventName string, ca *Card, cs *Cards, a []interface{}) 
 	}()
 	yg := pl.Game()
 	pl.phases = LP_Chain
-	pl.resetReplyTime()
+	if !yg.multi[eventName] {
+		pl.resetReplyTime()
+	} else {
+		pl.resetWaitTime()
+	}
 	pl.callAll(flashStep(pl))
 
-	for {
-		if pl.IsOutTime() {
-			// 如果连锁事件超时
-			break
-		}
-		cs0 := cs.Find(func(c *Card) bool {
-			return c != ca && c.GetSummoner() == pl
+	if pl.IsOutTime() {
+		// 如果连锁事件超时
+		return false
+	}
+	cs0 := cs.Find(func(c *Card) bool {
+		return c != ca && c.GetSummoner() == pl
+	})
+
+	if cs0.Len() == 0 {
+		cs1 := pl.Szone().Find(func(c *Card) bool {
+			return c.IsFaceDown()
 		})
-
-		if cs0.Len() == 0 {
-			cs1 := pl.Szone().Find(func(c *Card) bool {
-				return c.IsFaceDown()
-			})
-			if cs1.Len() == 0 {
-				break
-			}
+		if cs1.Len() == 0 {
+			return false
 		}
-
-		if ca != nil {
-			pl.MsgPub("msg.004", Arg{"rival": ca.ToUint(), "event": eventName})
-		} else {
-			pl.MsgPub("msg.005", Arg{"event": eventName})
-		}
-		c, u := pl.selectForWarn(LO_Chain, cs0)
-		if c == nil {
-			if u == LI_No {
-				// 除非输入不连锁 否则直到时间结束
-				break
-			}
-			continue
-		}
-		//优先级 比较
-		if ca == nil {
-			pl.MsgPub("msg.006", Arg{"self": c.ToUint(), "event": eventName})
-			c.Dispatch(Trigger, a...)
-		} else if ca.Priority() <= c.Priority() {
-			pl.MsgPub("msg.008", Arg{"self": c.ToUint(), "rival": ca.ToUint(), "event": eventName})
-			c.Dispatch(Trigger, a...)
-		} else {
-			// 连锁的卡牌优先级大于先发动的卡牌 所以推迟发动先发的卡牌
-			ca.OnlyOnce(Suf+eventName, func() {
-				pl.MsgPub("msg.007", Arg{"self": c.ToUint(), "rival": ca.ToUint(), "event": eventName})
-				c.Dispatch(Trigger, a...)
-			}, c)
-		}
-
-		if !yg.multi[eventName] {
-			// 如果不是能多次触发的事件则结束
-			break
-		}
-		cs.PickedFor(c)
 	}
 
-	return false
+	if ca != nil {
+		pl.MsgPub("msg.004", Arg{"rival": ca.ToUint(), "event": eventName})
+	} else {
+		pl.MsgPub("msg.005", Arg{"event": eventName})
+	}
+
+	c, u := pl.selectForSelf(cs0)
+	if c == nil {
+		if u == LI_No {
+			// 除非输入不连锁 否则直到时间结束
+			return false
+		}
+		return true
+	}
+	uu := Chain + fmt.Sprint(u)
+	//优先级 比较
+	if ca == nil {
+		pl.MsgPub("msg.006", Arg{"self": c.ToUint(), "event": eventName})
+		c.Dispatch(uu, a...)
+	} else if ca.Priority() <= c.Priority() {
+		pl.MsgPub("msg.008", Arg{"self": c.ToUint(), "rival": ca.ToUint(), "event": eventName})
+		c.Dispatch(uu, a...)
+	} else {
+		// 连锁的卡牌优先级大于先发动的卡牌 所以推迟发动先发的卡牌
+		ca.OnlyOnce(Suf+eventName, func() {
+			pl.MsgPub("msg.007", Arg{"self": c.ToUint(), "rival": ca.ToUint(), "event": eventName})
+			c.Dispatch(uu, a...)
+		}, c)
+	}
+
+	return pl.noskip
+
 }
 
 func (pl *Player) GetRound() int {
@@ -306,13 +302,16 @@ func (pl *Player) round() (err error) {
 	pl.callAll(flashStep(pl))
 	pl.Dispatch(MP, LP_Main1)
 
-	pl.phases = LP_Battle
-	pl.callAll(flashStep(pl))
-	pl.Dispatch(BP, LP_Battle)
-
-	pl.phases = LP_Main2
-	pl.callAll(flashStep(pl))
-	pl.Dispatch(MP, LP_Main2)
+	if pl.tophases != LP_End {
+		pl.phases = LP_Battle
+		pl.callAll(flashStep(pl))
+		pl.Dispatch(BP, LP_Battle)
+		if pl.tophases != LP_End {
+			pl.phases = LP_Main2
+			pl.callAll(flashStep(pl))
+			pl.Dispatch(MP, LP_Main2)
+		}
+	}
 
 	pl.phases = LP_End
 	pl.callAll(flashStep(pl))
@@ -323,148 +322,6 @@ func (pl *Player) round() (err error) {
 	return
 }
 
-func (pl *Player) draw(lp lp_type) {
-	pl.DrawCard(1)
-}
-
-func (pl *Player) main(lp lp_type) {
-	defer DebugStack()
-
-	pl.resetWaitTime()
-	for {
-
-		ca, u := pl.selectForMain(
-			//给予用户选择提示
-			LO_Onset, LO_Cover, pl.Hand(), func(c *Card) bool {
-				//在手牌的魔法卡
-				return c.IsSpell()
-			}, LO_Summon, LO_Cover, pl.Hand(), func(c *Card) bool {
-				//在手牌的怪兽卡小于4星
-				return pl.IsCanSummon() && c.IsMonster() && c.GetLevel() <= 4
-			}, LO_SummonFreedom, LO_CoverFreedom, pl.Hand(), func(c *Card) bool {
-				//在手牌的怪兽卡大于4星
-				return pl.IsCanSummon() && c.IsMonster() && ((c.GetLevel() > 4 && pl.Mzone().Len() >= 1) || (c.GetLevel() > 6 && pl.Mzone().Len() >= 2))
-			}, LO_Cover, pl.Hand(), func(c *Card) bool {
-				//在手牌的陷阱卡
-				return c.IsTrap()
-			}, LO_Onset, pl.SzoneAndField(), func(c *Card) bool {
-				//在魔陷区为发动的魔法卡
-				return c.IsSpell() && c.IsFaceDown() && !c.IsSpellQuickPlay()
-			}, LO_Expres, pl.Mzone(), func(c *Card) bool {
-				//在怪兽区还可以改变表示形式的怪兽卡
-				return c.IsMonster() && c.IsCanChange()
-			})
-
-		if ca == nil {
-			if u == uint(LP_Battle) && lp == LP_Main1 {
-				//从主阶段1转跳到战斗阶段
-				break
-			} else if u == uint(LP_End) {
-				//转跳到结束阶段
-				if lp == LP_Main1 {
-					pl.StopOnce(MP)
-					pl.StopOnce(BP)
-				}
-				break
-			}
-			if u == 0 {
-				break
-			}
-			continue
-		}
-
-		//使用卡牌
-		if ca.IsInHand() {
-			//  在手牌的卡
-			if u == uint(LI_Use1) {
-				ca.Dispatch(Use1)
-			} else if u == uint(LI_Use2) {
-				ca.Dispatch(Use2)
-			}
-		} else if ca.IsInMzone() {
-			// 在怪兽区的卡
-			ca.Dispatch(expres)
-		} else if ca.IsInSzone() {
-			// 在魔陷区的卡
-			ca.Dispatch(Onset)
-		} else {
-			// 这是一个不可能执行的分支 万一执行了就说明前面给用户选择的部分出错了
-			Debug(ca)
-			pl.Msg("101", nil)
-		}
-	}
-}
-
-func (pl *Player) battle(lp lp_type) {
-	defer DebugStack()
-
-	pl.resetWaitTime()
-	for {
-
-		// 给用户选择要发动 攻击的怪兽卡
-		css := NewCards(pl.Mzone(), func(c *Card) bool {
-			return c.IsFaceUpAttack() && c.IsCanAttack()
-		})
-		if css.Len() == 0 {
-			break
-		}
-		ca, u := pl.selectForWarn(LO_Attack, css)
-		if ca == nil {
-			if u == uint(LP_Main2) {
-				// 结束当前阶段转跳到主阶段2
-				break
-			} else if u == uint(LP_End) {
-				// 直接结束阶段
-				pl.StopOnce(MP)
-				break
-			}
-			if u == 0 {
-				break
-			}
-			continue
-		}
-
-		tar := pl.GetTarget()
-		pl.Msg("102", nil)
-
-		//选择攻击的目标
-		var c *Card
-		if tar.Mzone().Len() != 0 {
-			// 对方场上有怪时
-			if ca.IsCanDirect() {
-				// 如果我方怪兽能直接攻击玩家
-				c = pl.SelectForWarnShort(LO_Target, 1, tar.Mzone(), tar.Portrait())
-			} else {
-				c = pl.SelectForWarnShort(LO_Target, 1, tar.Mzone())
-			}
-		} else {
-			// 对方场上没有怪时
-			c = pl.SelectForWarnShort(LO_Target, 1, tar.Portrait())
-		}
-
-		if c != nil {
-			// 攻击宣言
-			ca.Dispatch(Declaration, c)
-		}
-
-	}
-}
-
-func (pl *Player) end(lp lp_type) {
-	// 结束阶段丢牌
-	if i := pl.Hand().Len() - pl.maxSdi; i > 0 {
-		pl.resetReplyTime()
-		pl.Msg("103", nil)
-		for k := 0; k != i; k++ {
-			ca := pl.SelectForWarn(LO_Discard, pl.Hand())
-			if ca == nil {
-				ca = pl.Hand().EndPop()
-			}
-			ca.Dispatch(Discard)
-		}
-	}
-}
-
 func (pl *Player) init() {
 	pl.DrawCard(5)
 }
@@ -473,7 +330,7 @@ func (pl *Player) initPlayer(u int) {
 	if pl.Portrait().Len() > 0 {
 		return
 	}
-	c := NewNoneCardOriginal().Make(pl)
+	c := NewPortraitCardOriginal().Make(pl)
 	pl.Portrait().EndPush(c)
 	pl.callAll(setPortrait(c, u))
 }
@@ -660,6 +517,19 @@ func (pl *Player) selectForMain(cc ...interface{}) (c *Card, u uint) {
 	return nil, u
 }
 
+func (pl *Player) selectForSelf(ci ...interface{}) (c *Card, u uint) {
+	css := NewCards(ci...)
+
+	pl.call(setPickRe(css, pl))
+	defer pl.call(cloPick(pl))
+	if c, u = pl.selectFor(); c != nil {
+		if css.IsExistCard(c) {
+			return
+		}
+	}
+	return nil, u
+}
+
 func (pl *Player) selectForWarn(lo lo_type, ci ...interface{}) (c *Card, u uint) {
 	css := NewCards(ci...)
 	pl.call(setPick(lo, css, pl))
@@ -704,4 +574,47 @@ func (pl *Player) SelectForWarn(lo lo_type, ci ...interface{}) *Card {
 		}
 	}
 	return nil
+}
+
+//  可选一个卡牌 如果超时则返回nil
+func (pl *Player) SelectChoosable(lo lo_type, ci ...interface{}) *Card {
+	css := NewCards(ci...)
+	pl.call(setPick(lo, css, pl))
+	defer pl.call(cloPick(pl))
+	for {
+		c, u := pl.selectFor()
+		if c != nil && css.IsExistCard(c) {
+			return c
+		}
+
+		if pl.IsOutTime() || u == LI_No || css.Len() == 0 {
+			return nil
+		}
+	}
+	return nil
+}
+
+// 必选一个卡牌 如果没有卡牌则返回nil  如果超时则返回最后一个 卡牌
+func (pl *Player) SelectRequired(lo lo_type, ci ...interface{}) *Card {
+	css := NewCards(ci...)
+	pl.call(setPick(lo, css, pl))
+	defer pl.call(cloPick(pl))
+	for css.Len() != 0 {
+		if pl.IsOutTime() {
+			return css.EndPop()
+		}
+		c, _ := pl.selectFor()
+		if c != nil && css.IsExistCard(c) {
+			return c
+		}
+	}
+	return nil
+}
+
+func (pl *Player) SelectRequiredShor(lo lo_type, ci ...interface{}) *Card {
+	css := NewCards(ci...)
+	if css.Len() == 1 {
+		return css.EndPop()
+	}
+	return pl.SelectRequired(lo, css)
 }

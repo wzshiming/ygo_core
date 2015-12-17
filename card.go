@@ -23,13 +23,6 @@ type CardOriginal struct {
 
 }
 
-func NewNoneCardOriginal() *CardOriginal {
-	return &CardOriginal{
-		IsValid: true,
-		Lc:      LC_None,
-	}
-}
-
 func (co *CardOriginal) Make(pl *Player) *Card {
 	c := &Card{
 		Events:       dispatcher.NewForkEvent(pl.GetFork()),
@@ -47,59 +40,29 @@ func (co *CardOriginal) Make(pl *Player) *Card {
 type Card struct {
 	dispatcher.Events
 	base.Unique
-	CardOriginal
-	isValid      bool
-	baseOriginal *CardOriginal
-	place        *Group  // 所在位置
-	summoner     *Player // 召唤者
-	owner        *Player // 所有者
-	le           le_type // 表示形式
+
+	isValid        bool
+	appendOriginal CardOriginal
+	baseOriginal   *CardOriginal
+	place          *Group  // 所在位置
+	summoner       *Player // 召唤者
+	owner          *Player // 所有者
+	le             le_type // 表示形式
 	//怪兽卡 属性
 	counter         int  // 计数器
 	lastAttackRound int  // 最后攻击回合
 	lastChangeRound int  // 最后改变表示形式回合
 	direct          bool // 直接攻击玩家
 
+	operateUniq uint
+	operate     []lo_type
+
+	Counter int // 计数器 给卡牌效果操作
 }
 
-// 刷新装备卡  未完成
-func (ca *Card) flashSpellEquip() {
-	ca.Atk = ca.baseOriginal.Atk
-	ca.Def = ca.baseOriginal.Def
-	ca.Dispatch(flashSpellEquip)
-	ca.Dispatch(Change)
-}
-
-func (ca *Card) OnExtra(a Arg) {
-	ca.Range(InExtra, OutExtra, a)
-}
-
-func (ca *Card) OnRemoved(a Arg) {
-	ca.Range(InRemoved, OutRemoved, a)
-}
-
-func (ca *Card) OnDeck(a Arg) {
-	ca.Range(InDeck, OutDeck, a)
-}
-
-func (ca *Card) OnField(a Arg) {
-	ca.Range(InField, OutField, a)
-}
-
-func (ca *Card) OnGrave(a Arg) {
-	ca.Range(InGrave, OutGrave, a)
-}
-
-func (ca *Card) OnHand(a Arg) {
-	ca.Range(InHand, OutHand, a)
-}
-
-func (ca *Card) OnMzone(a Arg) {
-	ca.Range(InMzone, OutMzone, a)
-}
-
-func (ca *Card) OnSzone(a Arg) {
-	ca.Range(InSzone, OutSzone, a)
+func (ca *Card) RangeGlobal(eventin string, eventout string, events map[string]interface{}, token ...interface{}) {
+	yg := ca.GetSummoner().game
+	ca.RangeForOther(yg, eventin, eventout, events, token...)
 }
 
 func (ca *Card) Peek() {
@@ -155,26 +118,26 @@ func (ca *Card) Priority() int {
 	return 0
 }
 
-func (ca *Card) Dispatch(eventName string, args ...interface{}) {
-	yg := ca.GetSummoner().Game()
-	if ca.Events.IsOpen(eventName) {
-		ca.Events.Dispatch(Pre+eventName, eventName)
-	}
-	//	if Pay != eventName && Chain != eventName {
-	//		//ca.Events.Dispatch(Pay, eventName)
+func (ca *Card) DispatchLocal(eventName string, args ...interface{}) {
+	ca.Events.Dispatch(eventName, args...)
+}
 
-	//		if ca.IsOpen(eventName) {
-	//			yg.chain(eventName, ca, ca.GetSummoner(), args)
-	//		}
-	//	}
+func (ca *Card) Dispatch(eventName string, args ...interface{}) {
+	defer DebugStack()
+	yg := ca.GetSummoner().Game()
+	if !ca.Events.IsOpen(eventName) {
+		return
+	}
+	ca.Events.Dispatch(Pre+eventName, eventName)
+
 	if ca.Events.IsOpen(eventName) {
 		yg.chain(eventName, ca, ca.GetSummoner(), args)
-
 	}
 	if ca.Events.IsOpen(eventName) {
 		ca.Events.Dispatch(eventName, args...)
-		ca.Events.Dispatch(Suf+eventName, eventName)
+		ca.Events.Dispatch(Used+eventName, eventName)
 	}
+	ca.Events.Dispatch(Suf+eventName, eventName)
 }
 
 func (ca *Card) GetPlace() *Group {
@@ -183,12 +146,12 @@ func (ca *Card) GetPlace() *Group {
 
 // 设置名字
 func (ca *Card) SetName(name string) {
-	ca.CardOriginal.Name = name
+	ca.appendOriginal.Name = name
 }
 
 // 获得名字
 func (ca *Card) GetName() string {
-	return ca.CardOriginal.Name
+	return ca.appendOriginal.Name
 }
 
 // 获得召唤者
@@ -200,7 +163,6 @@ func (ca *Card) GetSummoner() *Player {
 func (ca *Card) SetSummoner(c *Player) {
 	ca.IsCanAttack()
 	ca.summoner = c
-	ca.Dispatch(Change)
 }
 
 // 恢复召唤者
@@ -215,7 +177,7 @@ func (ca *Card) GetOwner() *Player {
 
 // 获得 id
 func (ca *Card) GetId() uint {
-	return ca.CardOriginal.Id
+	return ca.appendOriginal.Id
 }
 
 // 获得基础类型
@@ -227,11 +189,11 @@ func (ca *Card) Is(a ...interface{}) bool {
 	for _, v := range a {
 		switch s := v.(type) {
 		case lc_type:
-			if ca.CardOriginal.Lc&s == 0 {
+			if ca.appendOriginal.Lc&s == 0 {
 				return false
 			}
 		case la_type:
-			if ca.CardOriginal.La&s == 0 {
+			if ca.appendOriginal.La&s == 0 {
 				return false
 			}
 		case le_type:
@@ -239,7 +201,7 @@ func (ca *Card) Is(a ...interface{}) bool {
 				return false
 			}
 		case lr_type:
-			if ca.CardOriginal.Lr&s == 0 {
+			if ca.appendOriginal.Lr&s == 0 {
 				return false
 			}
 		case ll_type:
@@ -263,7 +225,7 @@ func (ca *Card) IsExtra() bool {
 
 // 获得类型
 func (ca *Card) GetType() lc_type {
-	return ca.CardOriginal.Lc
+	return ca.appendOriginal.Lc
 }
 
 // 是魔法卡
@@ -368,8 +330,7 @@ func (ca *Card) IsNone() bool {
 
 // 设置类型
 func (ca *Card) SetType(l lc_type) {
-	ca.CardOriginal.Lc = l
-	ca.Dispatch(Change)
+	ca.appendOriginal.Lc = l
 }
 
 // 获得基础属性
@@ -379,13 +340,13 @@ func (ca *Card) GetBaseAttribute() la_type {
 
 // 获得属性
 func (ca *Card) GetAttribute() la_type {
-	return ca.CardOriginal.La
+	return ca.appendOriginal.La
 }
 
 //  设置属性
 func (ca *Card) SetAttribute(l la_type) {
-	ca.CardOriginal.La = l
-	ca.Dispatch(Change)
+	ca.appendOriginal.La = l
+
 }
 
 // 获得基础种族
@@ -395,51 +356,61 @@ func (ca *Card) GetBaseRace() lr_type {
 
 // 获得种族
 func (ca *Card) GetRace() lr_type {
-	return ca.CardOriginal.Lr
+	return ca.appendOriginal.Lr
 }
 
 // 设置种族
 func (ca *Card) SetRace(l lr_type) {
-	ca.CardOriginal.Lr = l
-	ca.Dispatch(Change)
+	ca.appendOriginal.Lr = l
+
 }
 
-// 获得基础攻击
+// 获得基础攻击值
 func (ca *Card) GetBaseAtk() int {
 	return ca.baseOriginal.Atk
 }
 
-// 获得攻击
+// 获得攻击值
 func (ca *Card) GetAtk() int {
-	return ca.CardOriginal.Atk
+	return ca.appendOriginal.Atk
 }
 
-// 设置攻击
+// 设置攻击值
 func (ca *Card) SetAtk(i int) {
 	if i < 0 {
 		i = 0
 	}
-	ca.CardOriginal.Atk = i
-	ca.Dispatch(Change)
+	ca.appendOriginal.Atk = i
+
 }
 
-// 获得基础防御
+// 改变攻击值
+func (ca *Card) AddAtk(i int) {
+	ca.SetAtk(ca.GetAtk() + i)
+}
+
+// 获得基础防御值
 func (ca *Card) GetBaseDef() int {
 	return ca.baseOriginal.Def
 }
 
-// 获得防御
+// 获得防御值
 func (ca *Card) GetDef() int {
-	return ca.CardOriginal.Def
+	return ca.appendOriginal.Def
 }
 
-// 设置防御
+// 设置防御值
 func (ca *Card) SetDef(i int) {
 	if i < 0 {
 		i = 0
 	}
-	ca.CardOriginal.Def = i
-	ca.Dispatch(Change)
+	ca.appendOriginal.Def = i
+
+}
+
+// 改变防御值
+func (ca *Card) AddDef(i int) {
+	ca.SetDef(ca.GetDef() + i)
 }
 
 // 获得基础等级
@@ -449,13 +420,13 @@ func (ca *Card) GetBaseLevel() int {
 
 // 获得等级
 func (ca *Card) GetLevel() int {
-	return ca.CardOriginal.Level
+	return ca.appendOriginal.Level
 }
 
 // 设置等级
 func (ca *Card) SetLevel(i int) {
-	ca.CardOriginal.Level = i
-	ca.Dispatch(Change)
+	ca.appendOriginal.Level = i
+
 }
 
 // 判断能够改变表示形式
@@ -466,7 +437,7 @@ func (ca *Card) IsCanChange() bool {
 // 设置能够改变表示形式
 func (ca *Card) SetCanChange() {
 	ca.lastChangeRound = 0
-	ca.Dispatch(Change)
+
 }
 
 // 设置不能够改变表示形式
@@ -496,7 +467,11 @@ func (ca *Card) SetSizeRoundNotCanAttack(i int) {
 
 // 设置表示形式
 func (ca *Card) setLE(l le_type) {
+	b := ca.IsFaceDown() && ca.IsInMzone()
 	ca.le = l
+	if b && ca.IsFaceUp() {
+		ca.Dispatch(Flip)
+	}
 	pl := ca.GetSummoner()
 	pl.Dispatch(Expres, ca)
 	pl.callAll(exprCard(ca, l))
@@ -707,147 +682,147 @@ func (ca *Card) IsPortrait() bool {
 
 //战士族
 func (ca *Card) RaceIsWarrior() bool {
-	return ca.CardOriginal.Lr == LR_Warrior
+	return (ca.appendOriginal.Lr & LR_Warrior) != LR_None
 }
 
 //魔法使用族
 func (ca *Card) RaceIsSpellcaster() bool {
-	return ca.CardOriginal.Lr == LR_Spellcaster
+	return (ca.appendOriginal.Lr & LR_Spellcaster) != LR_None
 }
 
 //精灵族 天使族
 func (ca *Card) RaceIsFairy() bool {
-	return ca.CardOriginal.Lr == LR_Fairy
+	return (ca.appendOriginal.Lr & LR_Fairy) != LR_None
 }
 
 //恶魔族
 func (ca *Card) RaceIsFiend() bool {
-	return ca.CardOriginal.Lr == LR_Fiend
+	return (ca.appendOriginal.Lr & LR_Fiend) != LR_None
 }
 
 //不死族
 func (ca *Card) RaceIsZombie() bool {
-	return ca.CardOriginal.Lr == LR_Zombie
+	return (ca.appendOriginal.Lr & LR_Zombie) != LR_None
 }
 
 //机械族
 func (ca *Card) RaceIsMachine() bool {
-	return ca.CardOriginal.Lr == LR_Machine
+	return (ca.appendOriginal.Lr & LR_Machine) != LR_None
 }
 
 //水族
 func (ca *Card) RaceIsWater() bool {
-	return ca.CardOriginal.Lr == LR_Water
+	return (ca.appendOriginal.Lr & LR_Water) != LR_None
 }
 
 //炎族
 func (ca *Card) RaceIsFire() bool {
-	return ca.CardOriginal.Lr == LR_Fire
+	return (ca.appendOriginal.Lr & LR_Fire) != LR_None
 }
 
 //岩石族
 func (ca *Card) RaceIsRock() bool {
-	return ca.CardOriginal.Lr == LR_Rock
+	return (ca.appendOriginal.Lr & LR_Rock) != LR_None
 }
 
 //鸟兽族
 func (ca *Card) RaceIsWingedBeast() bool {
-	return ca.CardOriginal.Lr == LR_WingedBeast
+	return (ca.appendOriginal.Lr & LR_WingedBeast) != LR_None
 }
 
 //植物族
 func (ca *Card) RaceIsPlant() bool {
-	return ca.CardOriginal.Lr == LR_Plant
+	return (ca.appendOriginal.Lr & LR_Plant) != LR_None
 }
 
 //昆虫族
 func (ca *Card) RaceIsInsect() bool {
-	return ca.CardOriginal.Lr == LR_Insect
+	return (ca.appendOriginal.Lr & LR_Insect) != LR_None
 }
 
 //雷族
 func (ca *Card) RaceIsThunder() bool {
-	return ca.CardOriginal.Lr == LR_Thunder
+	return (ca.appendOriginal.Lr & LR_Thunder) != LR_None
 }
 
 //龙族
 func (ca *Card) RaceIsDragon() bool {
-	return ca.CardOriginal.Lr == LR_Dragon
+	return (ca.appendOriginal.Lr & LR_Dragon) != LR_None
 }
 
 //兽族
 func (ca *Card) RaceIsBeast() bool {
-	return ca.CardOriginal.Lr == LR_Beast
+	return (ca.appendOriginal.Lr & LR_Beast) != LR_None
 }
 
 //兽战士族
 func (ca *Card) RaceIsBeastWarrior() bool {
-	return ca.CardOriginal.Lr == LR_BeastWarrior
+	return (ca.appendOriginal.Lr & LR_BeastWarrior) != LR_None
 }
 
 //恐龙族
 func (ca *Card) RaceIsDinosaur() bool {
-	return ca.CardOriginal.Lr == LR_Dinosaur
+	return (ca.appendOriginal.Lr & LR_Dinosaur) != LR_None
 }
 
 //鱼族
 func (ca *Card) RaceIsFish() bool {
-	return ca.CardOriginal.Lr == LR_Fish
+	return (ca.appendOriginal.Lr & LR_Fish) != LR_None
 }
 
 //海龙族
 func (ca *Card) RaceIsSeaSerpent() bool {
-	return ca.CardOriginal.Lr == LR_SeaSerpent
+	return (ca.appendOriginal.Lr & LR_SeaSerpent) != LR_None
 }
 
 //爬虫族
 func (ca *Card) RaceIsReptile() bool {
-	return ca.CardOriginal.Lr == LR_Reptile
+	return (ca.appendOriginal.Lr & LR_Reptile) != LR_None
 }
 
 //念动力族
 func (ca *Card) RaceIsPsychic() bool {
-	return ca.CardOriginal.Lr == LR_Psychic
+	return (ca.appendOriginal.Lr & LR_Psychic) != LR_None
 }
 
 //幻神兽族
 func (ca *Card) RaceIsDivineBeast() bool {
-	return ca.CardOriginal.Lr == LR_DivineBeast
+	return (ca.appendOriginal.Lr & LR_DivineBeast) != LR_None
 }
 
 //地
 func (ca *Card) AttrIsEarth() bool {
-	return ca.CardOriginal.La == LA_Earth
+	return ca.appendOriginal.La == LA_Earth
 }
 
 //水
 func (ca *Card) AttrIsWater() bool {
-	return ca.CardOriginal.La == LA_Water
+	return ca.appendOriginal.La == LA_Water
 }
 
 //火
 func (ca *Card) AttrIsFire() bool {
-	return ca.CardOriginal.La == LA_Fire
+	return ca.appendOriginal.La == LA_Fire
 }
 
 //风
 func (ca *Card) AttrIsWind() bool {
-	return ca.CardOriginal.La == LA_Wind
+	return ca.appendOriginal.La == LA_Wind
 }
 
 //光
 func (ca *Card) AttrIsLight() bool {
-	return ca.CardOriginal.La == LA_Light
+	return ca.appendOriginal.La == LA_Light
 }
 
 //暗
 func (ca *Card) AttrIsDark() bool {
-	return ca.CardOriginal.La == LA_Dark
+	return ca.appendOriginal.La == LA_Dark
 }
 
 //神
 func (ca *Card) AttrIsDevine() bool {
-	return ca.CardOriginal.La == LA_Devine
+	return ca.appendOriginal.La == LA_Devine
 }
 
 // 被破坏
@@ -868,4 +843,9 @@ func (ca *Card) Discard(c *Card) {
 // 被移除
 func (ca *Card) Removed(c *Card) {
 	ca.Dispatch(Removed, c)
+}
+
+// 被使用
+func (ca *Card) Depleted(c *Card) {
+	ca.Dispatch(Depleted, c)
 }

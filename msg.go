@@ -1,5 +1,7 @@
 package ygo_core
 
+import "fmt"
+
 type MsgChan struct {
 	secondary chan AskCode
 	msgfunc   func(AskCode) bool
@@ -84,6 +86,18 @@ func message(format string, a Arg) (string, Arg) {
 	return "message", Arg{
 		"format": format,
 		"params": a,
+	}
+}
+
+func setPickRe(cs *Cards, pl *Player) (string, Arg) {
+	mi := map[string][]lo_type{}
+	cs.ForEach(func(c *Card) bool {
+		mi[fmt.Sprint(c.ToUint())] = c.operate
+		return true
+	})
+	return "setPickRe", Arg{
+		"master":  pl.index,
+		"operate": mi,
 	}
 }
 
