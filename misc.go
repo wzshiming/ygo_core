@@ -25,7 +25,7 @@ func DebugStack() {
 }
 
 func RandInt(i int) int {
-	return int(<-base.LCG) % i
+	return int(base.RandUint32()) % i
 }
 
 type Action func(ca *Card) bool

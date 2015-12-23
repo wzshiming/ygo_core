@@ -116,10 +116,17 @@ func cloPick(pl *Player) (string, Arg) {
 	}
 }
 
-func changeHp(pl *Player, hp int) (string, Arg) {
-	return "changeHp", Arg{
+func cloPickOne(pl *Player, c *Card) (string, Arg) {
+	return "cloPickOne", Arg{
 		"master": pl.index,
-		"hp":     hp,
+		"uniq":   c.ToUint(),
+	}
+}
+
+func changeHp(pl *Player) (string, Arg) {
+	return "changeLp", Arg{
+		"master": pl.index,
+		"lp":     pl.lp,
 	}
 }
 

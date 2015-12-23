@@ -52,8 +52,6 @@ func (cv *CardVersion) ListIsValid() (u []uint) {
 	return
 }
 
-
-
 func (cv *CardVersion) AllIsValid() (cr CardRets) {
 	for k, v := range cv.List {
 		if v.IsValid {
@@ -65,6 +63,10 @@ func (cv *CardVersion) AllIsValid() (cr CardRets) {
 		}
 	}
 	return
+}
+
+func (cv *CardVersion) String() string {
+	return ""
 }
 
 //func (cv *CardVersion) Filter(name string, i ...interface{}) (cr CardRets) {

@@ -65,6 +65,7 @@ func newPlayer(yg *YGO) *Player {
 
 		if m.Uniq != 0 {
 			if ca := pl.Game().getCard(m.Uniq); ca != nil {
+				//fmt.Println(ca)
 				if m.Method == uint(LI_Over) {
 					if pr != 0 {
 						pl.Game().callAll(offTouch(pr))
@@ -151,12 +152,26 @@ func (pl *Player) Portrait() *Group {
 	return pl.getArea(LL_Portrait)
 }
 
-func (pl *Player) Dispatch(eventName string, args ...interface{}) {
-	yg := pl.Game()
-	if pl.IsOpen(eventName) {
-		yg.chain(eventName, nil, pl, append(args))
-		pl.Events.Dispatch(eventName, args...)
+func (pl *Player) DispatchLocal(eventName string, args ...interface{}) {
+	pl.Events.Dispatch(eventName, args...)
+}
+
+func (pl *Player) DispatchGlobal(eventName string, args ...interface{}) {
+	if pl.Events.IsOpen(eventName) {
+		yg := pl.Game()
+		yg.chain(eventName, nil, pl, args)
 	}
+	pl.Events.Dispatch(eventName, args...)
+}
+
+func (pl *Player) Dispatch(eventName string, args ...interface{}) {
+
+	if !pl.Events.IsOpen(eventName) {
+		return
+	}
+	pl.DispatchGlobal(Pre+eventName, eventName)
+	pl.DispatchGlobal(eventName, args...)
+	pl.DispatchGlobal(Suf+eventName, eventName)
 
 }
 
@@ -209,6 +224,7 @@ func (pl *Player) chain(eventName string, ca *Card, cs *Cards, a []interface{}) 
 	pl.noskip = true
 	t := pl.phases
 	r := pl.passTime
+
 	//defer DebugStack()
 	// 储存连锁前的时间和阶段
 	// 连锁结束后恢复
@@ -228,10 +244,6 @@ func (pl *Player) chain(eventName string, ca *Card, cs *Cards, a []interface{}) 
 	}
 	pl.callAll(flashStep(pl))
 
-	if pl.IsOutTime() {
-		// 如果连锁事件超时
-		return false
-	}
 	cs0 := cs.Find(func(c *Card) bool {
 		return c != ca && c.GetSummoner() == pl
 	})
@@ -256,12 +268,15 @@ func (pl *Player) chain(eventName string, ca *Card, cs *Cards, a []interface{}) 
 		if u == LI_No {
 			// 除非输入不连锁 否则直到时间结束
 			return false
+		} else if pl.IsOutTime() {
+			// 如果连锁事件超时
+			return false
 		}
 		return true
 	}
 	uu := Chain + fmt.Sprint(u)
 	//优先级 比较
-	if ca == nil {
+	if ca == nil || yg.multi[eventName] {
 		pl.MsgPub("msg.006", Arg{"self": c.ToUint(), "event": eventName})
 		c.Dispatch(uu, a...)
 	} else if ca.Priority() <= c.Priority() {
@@ -283,12 +298,46 @@ func (pl *Player) GetRound() int {
 	return pl.roundSize
 }
 
+func (pl *Player) IsInEP() bool {
+	return pl.Phases() == LP_End
+}
+
+func (pl *Player) IsInDP() bool {
+	return pl.Phases() == LP_Draw
+}
+
+func (pl *Player) IsInSP() bool {
+	return pl.Phases() == LP_Standby
+}
+
+func (pl *Player) IsInBP() bool {
+	return pl.Phases() == LP_Battle
+}
+
+func (pl *Player) IsInMP1() bool {
+	return pl.Phases() == LP_Main1
+}
+
+func (pl *Player) IsInMP2() bool {
+	return pl.Phases() == LP_Main2
+}
+
+func (pl *Player) IsInMP() bool {
+	return pl.IsInMP1() || pl.IsInMP2()
+}
+
+func (pl *Player) Phases() lp_type {
+	return pl.phases
+}
+
 func (pl *Player) round() (err error) {
 	defer DebugStack()
 
 	// 一个回合阶段流程
 	pl.roundSize++
 	pl.Dispatch(RoundBegin)
+
+	pl.tophases = LP_Chain
 
 	pl.phases = LP_Draw
 	pl.callAll(flashStep(pl))
@@ -322,10 +371,6 @@ func (pl *Player) round() (err error) {
 	return
 }
 
-func (pl *Player) init() {
-	pl.DrawCard(5)
-}
-
 func (pl *Player) initPlayer(u int) {
 	if pl.Portrait().Len() > 0 {
 		return
@@ -357,12 +402,14 @@ func (pl *Player) changeLp(i int) {
 		pl.MsgPub("msg.201", Arg{"num": fmt.Sprint(-i)})
 	} else if i > 0 {
 		pl.MsgPub("msg.202", Arg{"num": fmt.Sprint(i)})
+	} else {
+		return
 	}
 	pl.lp += i
-	if pl.lp < 0 {
+	if pl.lp <= 0 {
 		pl.Fail()
 	}
-	pl.callAll(changeHp(pl, pl.lp))
+	pl.callAll(changeHp(pl))
 }
 func (pl *Player) Coins(i int) int {
 	return RandInt(i)
@@ -400,12 +447,12 @@ func (pl *Player) DrawCard(s int) {
 
 // 是当前的回合者
 func (pl *Player) IsCurrent() bool {
-	return pl == pl.game.current
+	return pl == pl.Game().current
 }
 
 // 获得当前回合者
 func (pl *Player) GetCurrent() *Player {
-	return pl.game.current
+	return pl.Game().current
 }
 
 func (pl *Player) call(method string, reply interface{}) error {
@@ -434,15 +481,15 @@ func (pl *Player) resetWaitTime() {
 }
 
 func (pl *Player) IsCanSummon() bool {
-	return pl.lastSummonRound < pl.GetRound()
+	return pl.lastSummonRound != 0
 }
 
 func (pl *Player) SetCanSummon() {
-	pl.lastSummonRound = 0
+	pl.lastSummonRound = 1
 }
 
 func (pl *Player) SetNotCanSummon() {
-	pl.lastSummonRound = pl.GetRound()
+	pl.lastSummonRound = 0
 }
 
 func (pl *Player) isOutTime() bool {
@@ -473,49 +520,49 @@ func (pl *Player) selectFor() (*Card, uint) {
 	return nil, p.Method
 }
 
-func (pl *Player) SelectForPopup(lo lo_type, ci ...interface{}) *Card {
-	css := NewCards(ci...)
-	css.ForEach(func(c *Card) bool {
-		c.Peek()
-		return true
-	})
-	return pl.SelectForWarn(lo, css)
-}
+//func (pl *Player) SelectForPopup(lo lo_type, ci ...interface{}) *Card {
+//	css := NewCards(ci...)
+//	css.ForEach(func(c *Card) bool {
+//		c.Peek()
+//		return true
+//	})
+//	return pl.SelectRequired(lo, css)
+//}
 
-func (pl *Player) selectForMain(cc ...interface{}) (c *Card, u uint) {
-	b := map[lo_type][]interface{}{}
-	e := true
-	n := LO_None
-	for _, v := range cc {
-		if s, ok := v.(lo_type); ok {
-			if !e {
-				n = LO_None
-				e = true
-			}
-			if n != LO_None {
-				n += ","
-			}
-			n += s
-		} else {
-			b[n] = append(b[n], v)
-			e = false
-		}
-	}
-	css := NewCards()
-	for k, v := range b {
-		cs := NewCards(v...)
-		css.Join(cs)
-		pl.call(setPick(k, cs, pl))
-	}
+//func (pl *Player) selectForMain(cc ...interface{}) (c *Card, u uint) {
+//	b := map[lo_type][]interface{}{}
+//	e := true
+//	n := LO_None
+//	for _, v := range cc {
+//		if s, ok := v.(lo_type); ok {
+//			if !e {
+//				n = LO_None
+//				e = true
+//			}
+//			if n != LO_None {
+//				n += ","
+//			}
+//			n += s
+//		} else {
+//			b[n] = append(b[n], v)
+//			e = false
+//		}
+//	}
+//	css := NewCards()
+//	for k, v := range b {
+//		cs := NewCards(v...)
+//		css.Join(cs)
+//		pl.call(setPick(k, cs, pl))
+//	}
 
-	defer pl.call(cloPick(pl))
-	if c, u = pl.selectFor(); c != nil {
-		if css.IsExistCard(c) {
-			return
-		}
-	}
-	return nil, u
-}
+//	defer pl.call(cloPick(pl))
+//	if c, u = pl.selectFor(); c != nil {
+//		if css.IsExistCard(c) {
+//			return
+//		}
+//	}
+//	return nil, u
+//}
 
 func (pl *Player) selectForSelf(ci ...interface{}) (c *Card, u uint) {
 	css := NewCards(ci...)
@@ -530,55 +577,68 @@ func (pl *Player) selectForSelf(ci ...interface{}) (c *Card, u uint) {
 	return nil, u
 }
 
-func (pl *Player) selectForWarn(lo lo_type, ci ...interface{}) (c *Card, u uint) {
-	css := NewCards(ci...)
-	pl.call(setPick(lo, css, pl))
-	defer pl.call(cloPick(pl))
-	if c, u = pl.selectFor(); c != nil {
-		if css.IsExistCard(c) {
-			return
-		}
-	}
-	return nil, u
-}
+//func (pl *Player) selectForWarn(lo lo_type, ci ...interface{}) (c *Card, u uint) {
+//	css := NewCards(ci...)
+//	pl.call(setPick(lo, css, pl))
+//	defer pl.call(cloPick(pl))
+//	if c, u = pl.selectFor(); c != nil {
+//		if css.IsExistCard(c) {
+//			return
+//		}
+//	}
+//	return nil, u
+//}
 
-// 用户选择卡牌 如果 少于i则直接返回 最后一个卡牌
+//// 用户选择卡牌 如果 少于i则直接返回 最后一个卡牌
 
-func (pl *Player) SelectForWarnShort(lo lo_type, i int, ci ...interface{}) (c *Card) {
-	css := NewCards(ci...)
-	if css.Len() == 0 {
-		return nil
-	} else if css.Len() <= i {
-		return css.EndPop()
-	}
-	for c == nil {
-		c = pl.SelectForWarn(lo, css)
-	}
-	return
-}
+//func (pl *Player) SelectForWarnShort(lo lo_type, i int, ci ...interface{}) (c *Card) {
+//	css := NewCards(ci...)
+//	if css.Len() == 0 {
+//		return nil
+//	} else if css.Len() <= i {
+//		return css.EndPop()
+//	}
+//	for c == nil {
+//		c = pl.SelectForWarn(lo, css)
+//	}
+//	return
+//}
 
-// 直到用户选择正确的卡牌
+//// 直到用户选择正确的卡牌
 
-func (pl *Player) SelectForWarn(lo lo_type, ci ...interface{}) *Card {
-	css := NewCards(ci...)
-	pl.call(setPick(lo, css, pl))
-	defer pl.call(cloPick(pl))
-	for {
-		c, u := pl.selectFor()
-		if c != nil && css.IsExistCard(c) {
-			return c
-		}
+//func (pl *Player) SelectForWarn(lo lo_type, ci ...interface{}) *Card {
+//	css := NewCards(ci...)
+//	pl.call(setPick(lo, css, pl))
+//	defer pl.call(cloPick(pl))
+//	for {
+//		c, u := pl.selectFor()
+//		if c != nil && css.IsExistCard(c) {
+//			return c
+//		}
 
-		if pl.IsOutTime() || u == LI_No || css.Len() == 0 {
-			return nil
-		}
-	}
-	return nil
-}
+//		if pl.IsOutTime() || u == LI_No || css.Len() == 0 {
+//			return nil
+//		}
+//	}
+//	return nil
+//}
 
 //  可选一个卡牌 如果超时则返回nil
-func (pl *Player) SelectChoosable(lo lo_type, ci ...interface{}) *Card {
+
+func (pl *Player) selectHead(ci []interface{}) *Cards {
 	css := NewCards(ci...)
+	css.ForEach(func(c0 *Card) bool {
+		if c0.GetSummoner() == pl && c0.IsInDeck() {
+			c0.Peek()
+		}
+		return true
+	})
+	return css
+}
+
+func (pl *Player) SelectChoosable(lo lo_type, ci ...interface{}) *Card {
+	css := pl.selectHead(ci)
+
 	pl.call(setPick(lo, css, pl))
 	defer pl.call(cloPick(pl))
 	for {
@@ -592,11 +652,45 @@ func (pl *Player) SelectChoosable(lo lo_type, ci ...interface{}) *Card {
 		}
 	}
 	return nil
+}
+
+func (pl *Player) SelectRequiredRange(i, j int, lo lo_type, ci ...interface{}) *Cards {
+	if i > j || j <= 0 {
+		return nil
+	}
+
+	css := pl.selectHead(ci)
+
+	if css.Len() < i {
+		return nil
+	} else if css.Len() == i {
+		return css
+	}
+	css0 := NewCards()
+	pl.call(setPick(lo, css, pl))
+	defer pl.call(cloPick(pl))
+	for css0.Len() < j {
+
+		c, u := pl.selectFor()
+		if c != nil && css.IsExistCard(c) {
+			css0.EndPush(c)
+			css.PickedFor(c)
+			pl.call(cloPickOne(pl, c))
+		} else if css.Len() >= i && (pl.IsOutTime() || u == LI_No) {
+			return css0
+		}
+		if pl.IsOutTime() {
+			css0.EndPush(css.EndPop())
+		}
+
+	}
+	return css0
 }
 
 // 必选一个卡牌 如果没有卡牌则返回nil  如果超时则返回最后一个 卡牌
+
 func (pl *Player) SelectRequired(lo lo_type, ci ...interface{}) *Card {
-	css := NewCards(ci...)
+	css := pl.selectHead(ci)
 	pl.call(setPick(lo, css, pl))
 	defer pl.call(cloPick(pl))
 	for css.Len() != 0 {

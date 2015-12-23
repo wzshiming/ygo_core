@@ -3,6 +3,7 @@ package ygo_core
 import (
 	"github.com/wzshiming/base"
 	"github.com/wzshiming/dispatcher"
+	"github.com/wzshiming/ffmt"
 )
 
 type CardOriginal struct {
@@ -21,6 +22,29 @@ type CardOriginal struct {
 
 	Initialize Action // 初始化
 
+}
+
+func (co CardOriginal) String() string {
+	if co.Level != 0 {
+		return ffmt.Sputs(map[string]interface{}{
+			"Name": co.Name,
+			"Id":   co.Id,
+			"Pwd":  co.Password,
+			"Type": co.Lc,
+			"Arrt": co.La,
+			"Race": co.Lr,
+			"Lv":   co.Level,
+			"Atk":  co.Atk,
+			"Def":  co.Def,
+		})
+	} else {
+		return ffmt.Sputs(map[string]interface{}{
+			"Name": co.Name,
+			"Id":   co.Id,
+			"Pwd":  co.Password,
+			"Type": co.Lc,
+		})
+	}
 }
 
 func (co *CardOriginal) Make(pl *Player) *Card {
@@ -45,11 +69,12 @@ type Card struct {
 	appendOriginal CardOriginal
 	baseOriginal   *CardOriginal
 	place          *Group  // 所在位置
+	lastPlace      *Group  // 上一个位置
 	summoner       *Player // 召唤者
 	owner          *Player // 所有者
 	le             le_type // 表示形式
 	//怪兽卡 属性
-	counter         int  // 计数器
+
 	lastAttackRound int  // 最后攻击回合
 	lastChangeRound int  // 最后改变表示形式回合
 	direct          bool // 直接攻击玩家
@@ -57,12 +82,45 @@ type Card struct {
 	operateUniq uint
 	operate     []lo_type
 
-	Counter int // 计数器 给卡牌效果操作
+	lastEvent string
+	Counter   int // 计数器 给卡牌效果操作
 }
 
-func (ca *Card) RangeGlobal(eventin string, eventout string, events map[string]interface{}, token ...interface{}) {
-	yg := ca.GetSummoner().game
-	ca.RangeForOther(yg, eventin, eventout, events, token...)
+func (ca *Card) String() string {
+	if ca.GetLevel() == 0 {
+		return ffmt.Sputs(map[string]interface{}{
+			"Base":  *ca.baseOriginal,
+			"Pos":   ca.place,
+			"Expre": ca.le,
+		})
+	}
+	return ffmt.Sputs(map[string]interface{}{
+		"Curr":  ca.appendOriginal,
+		"Pos":   ca.place,
+		"Expre": ca.le,
+	})
+}
+
+func (ca *Card) Init() {
+	ca.Empty()
+	ca.appendOriginal = *ca.baseOriginal
+	ca.Counter = 0
+	ca.isValid = true
+	ca.SetNotDirect()
+	ca.SetCanAttack()
+	ca.SetCanChange()
+	ca.RecoverSummoner()
+	ca.registerNormal()
+	ca.baseOriginal.Initialize.Call(ca)
+}
+
+func (ca *Card) StopEvent() {
+	ca.StopOnce(ca.lastEvent)
+}
+
+func (ca *Card) RangeGlobal(eventin string, eventout string, events map[string]interface{}) {
+	yg := ca.GetSummoner().Game()
+	ca.RangeForOther(yg, eventin, eventout, events)
 }
 
 func (ca *Card) Peek() {
@@ -122,26 +180,38 @@ func (ca *Card) DispatchLocal(eventName string, args ...interface{}) {
 	ca.Events.Dispatch(eventName, args...)
 }
 
+func (ca *Card) DispatchGlobal(eventName string, args ...interface{}) {
+	if ca.Events.IsOpen(eventName) {
+		pl := ca.GetSummoner()
+		yg := pl.Game()
+		yg.chain(eventName, ca, pl, args)
+	}
+	ca.Events.Dispatch(eventName, args...)
+}
+
 func (ca *Card) Dispatch(eventName string, args ...interface{}) {
-	defer DebugStack()
+	//defer DebugStack()
 	yg := ca.GetSummoner().Game()
 	if !ca.Events.IsOpen(eventName) {
 		return
 	}
-	ca.Events.Dispatch(Pre+eventName, eventName)
-
+	ca.DispatchGlobal(Pre+eventName, eventName)
 	if ca.Events.IsOpen(eventName) {
 		yg.chain(eventName, ca, ca.GetSummoner(), args)
 	}
 	if ca.Events.IsOpen(eventName) {
 		ca.Events.Dispatch(eventName, args...)
-		ca.Events.Dispatch(Used+eventName, eventName)
+		ca.DispatchGlobal(Used+eventName, eventName)
 	}
-	ca.Events.Dispatch(Suf+eventName, eventName)
+	ca.DispatchGlobal(Suf+eventName, eventName)
 }
 
 func (ca *Card) GetPlace() *Group {
 	return ca.place
+}
+
+func (ca *Card) GetLastPlace() *Group {
+	return ca.lastPlace
 }
 
 // 设置名字
@@ -431,46 +501,46 @@ func (ca *Card) SetLevel(i int) {
 
 // 判断能够改变表示形式
 func (ca *Card) IsCanChange() bool {
-	return ca.lastChangeRound < ca.GetSummoner().GetRound()
+	return ca.lastChangeRound != 0
 }
 
 // 设置能够改变表示形式
 func (ca *Card) SetCanChange() {
-	ca.lastChangeRound = 0
+	ca.lastChangeRound = 1
 
 }
 
 // 设置不能够改变表示形式
 func (ca *Card) SetNotCanChange() {
-	ca.lastChangeRound = ca.GetSummoner().GetRound()
+	ca.lastChangeRound = 0
 }
 
 // 判断能够攻击
 func (ca *Card) IsCanAttack() bool {
-	return ca.lastAttackRound < ca.GetSummoner().GetRound()
+	return ca.lastAttackRound != 0
 }
 
 // 设置能够攻击
 func (ca *Card) SetCanAttack() {
-	ca.lastAttackRound = 0
+	ca.lastAttackRound = 1
 }
 
 // 设置不能够攻击
 func (ca *Card) SetNotCanAttack() {
-	ca.lastAttackRound = ca.GetSummoner().GetRound()
+	ca.lastAttackRound = 0
 }
 
-// 设置不能够数攻击
-func (ca *Card) SetSizeRoundNotCanAttack(i int) {
-	ca.lastAttackRound = ca.GetSummoner().GetRound() + i
-}
+//// 设置不能够数攻击
+//func (ca *Card) SetSizeRoundNotCanAttack(i int) {
+//	ca.lastAttackRound = ca.GetSummoner().GetRound() + i
+//}
 
 // 设置表示形式
 func (ca *Card) setLE(l le_type) {
 	b := ca.IsFaceDown() && ca.IsInMzone()
 	ca.le = l
 	if b && ca.IsFaceUp() {
-		ca.Dispatch(Flip)
+		ca.Dispatch(FaceUp)
 	}
 	pl := ca.GetSummoner()
 	pl.Dispatch(Expres, ca)
@@ -506,8 +576,16 @@ func (ca *Card) IsFaceUp() bool {
 }
 
 // 设置是面朝上
-func (ca *Card) SetFaceUp() {
+func (ca *Card) setFaceUp() {
 	ca.setLE(LE_FaceUp | (ca.le & LE_ad))
+}
+
+func (ca *Card) SetFaceUp() {
+	b := ca.IsFaceDown()
+	ca.setFaceUp()
+	if b {
+		ca.Dispatch(Flip)
+	}
 }
 
 // 判断是面朝下
@@ -526,8 +604,16 @@ func (ca *Card) IsFaceUpAttack() bool {
 }
 
 // 设置是面朝上攻击表示
-func (ca *Card) SetFaceUpAttack() {
+func (ca *Card) setFaceUpAttack() {
 	ca.setLE(LE_FaceUpAttack)
+}
+
+func (ca *Card) SetFaceUpAttack() {
+	b := ca.IsFaceDown()
+	ca.setFaceUpAttack()
+	if b {
+		ca.Dispatch(Flip)
+	}
 }
 
 // 判断是面朝下攻击表示
@@ -546,8 +632,16 @@ func (ca *Card) IsFaceUpDefense() bool {
 }
 
 // 设置是面朝上防御表示
-func (ca *Card) SetFaceUpDefense() {
+func (ca *Card) setFaceUpDefense() {
 	ca.setLE(LE_FaceUpDefense)
+}
+
+func (ca *Card) SetFaceUpDefense() {
+	b := ca.IsFaceDown()
+	ca.setFaceUpDefense()
+	if b {
+		ca.Dispatch(Flip)
+	}
 }
 
 // 判断是面朝下防御表示
@@ -848,4 +942,15 @@ func (ca *Card) Removed(c *Card) {
 // 被使用
 func (ca *Card) Depleted(c *Card) {
 	ca.Dispatch(Depleted, c)
+}
+
+// 特殊召唤
+func (ca *Card) SummonSpecial(c *Card) {
+	ca.Init()
+	ca.Dispatch(SummonSpecial, c)
+}
+
+// 通常召唤
+func (ca *Card) SummonNormal(c *Card) {
+	ca.Dispatch(Summon, c)
 }

@@ -68,7 +68,7 @@ func (cp *Cards) Get(index int) *Card {
 func (cp *Cards) Shuffle() {
 	for i := 0; i != 20; i++ {
 		cp.SortFor(func(c1, c2 *Card) bool {
-			return ((<-base.LCG) % 5) != 0
+			return (base.RandUint32() % 5) != 0
 		})
 	}
 }
@@ -168,4 +168,14 @@ func (cp *Cards) Find(fun func(*Card) bool) (cs *Cards) {
 
 func (cp *Cards) Random() *Card {
 	return cp.Remove(RandInt(cp.Len()))
+}
+
+func (cp *Cards) ReDup() {
+	mc := map[*Card]bool{}
+	for cp.Len() != 0 {
+		mc[cp.EndPop()] = true
+	}
+	for c, _ := range mc {
+		cp.EndPush(c)
+	}
 }

@@ -37,6 +37,7 @@ type YGO struct {
 
 	both  map[string]bool
 	multi map[string]bool
+	any   map[*Card]bool
 
 	eventSize uint
 }
@@ -51,6 +52,7 @@ func NewYGO(r *agent.Room) *YGO {
 		players:   map[uint]*Player{},
 		both:      map[string]bool{},
 		multi:     map[string]bool{},
+		any:       map[*Card]bool{},
 		sesstions: map[uint]*agent.Session{},
 	}
 	yg.Room.ForEach(func(sess *agent.Session) {
@@ -63,9 +65,13 @@ func NewYGO(r *agent.Room) *YGO {
 	return yg
 }
 
-//func (yg *YGO) Dispatch(eventName string, args ...interface{}) {
-//	rego.ERR(eventName, args)
-//}
+func (yg *YGO) OnAny(c *Card) {
+	yg.any[c] = true
+}
+
+func (yg *YGO) OffAny(c *Card) {
+	delete(yg.any, c)
+}
 
 func (yg *YGO) SetCardVer(v *CardVersion) {
 	if yg.cardVer == nil {
@@ -90,6 +96,11 @@ func (yg *YGO) chain(eventName string, ca *Card, pl *Player, args []interface{})
 	yg.eventSize++
 	// 给补上缺省值
 	if ca != nil {
+		oe := ca.lastEvent
+		ca.lastEvent = eventName
+		defer func() {
+			ca.lastEvent = oe
+		}()
 		flag := true
 		for _, v := range args {
 			if _, ok := v.(*Card); ok {
@@ -117,8 +128,8 @@ func (yg *YGO) chain(eventName string, ca *Card, pl *Player, args []interface{})
 	cs := NewCards()
 	// 广播全局事件
 	e := func() {
-		cs.Clear()
 		yg.EmptyEvent(Chain)
+		cs.Clear()
 		yg.Dispatch(eventName, args...)
 
 		yg.ForEventEach(Chain, func(n string, i interface{}) {
@@ -126,19 +137,24 @@ func (yg *YGO) chain(eventName string, ca *Card, pl *Player, args []interface{})
 				cs.EndPush(v)
 			}
 		})
+		for c, _ := range yg.any {
+			cs.EndPush(c)
+		}
+		cs.ReDup()
 	}
+
 	e()
 
 	// 等待用户回应
 	if cs.Len() > 0 || yg.both[eventName] {
-		for pl.chain(eventName, ca, cs, args) && yg.multi[eventName] {
-			e()
-		}
-		if ca != nil && ca.IsValid() {
-			for pl.GetTarget().chain(eventName, ca, cs, args) && yg.multi[eventName] {
+		tar := pl.GetTarget()
+		if yg.multi[eventName] {
+			for pl.chain(eventName, ca, cs, args) {
 				e()
 			}
-			//pl.GetTarget().chain(eventName, ca, cs, args)
+		} else {
+			pl.chain(eventName, ca, cs, args)
+			tar.chain(eventName, ca, cs, args)
 		}
 	}
 	yg.EmptyEvent(Chain)
@@ -245,12 +261,6 @@ func (yg *YGO) Loop() {
 		yg.players[v].initDeck()
 	}
 
-	nap(20) // 手牌初始化
-	for _, v := range yg.round {
-		yg.players[v].init()
-		yg.players[v].ChangeLp(8000)
-	}
-
 	//必要连锁初始化
 	yg.registerBothEvent(Summon)
 	yg.registerBothEvent(SummonFlip)
@@ -261,24 +271,15 @@ func (yg *YGO) Loop() {
 	//yg.registerMultiEvent(DP)
 	yg.registerMultiEvent(SP)
 	yg.registerMultiEvent(MP)
+	yg.registerMultiEvent(BP)
 	//yg.registerMultiEvent(EP)
 
 	nap(10) // 游戏开始
-
 	pl := yg.getPlayerForIndex(0)
-	pl.MsgPub("msg.001", nil)
-	if pl.Portrait().Len() == 1 {
-		ca := pl.Portrait().Get(0)
-		ca.RegisterGlobalListen(BP, func(tar *Player) {
-			tar.Mzone().ForEach(func(c *Card) bool {
-				c.SetNotCanAttack()
-				return true
-			})
-		})
-		ca.RegisterGlobalListen(RoundEnd, func() {
-			ca.UnregisterAllGlobalListen()
-		})
-	}
+	pl.Dispatch(Initiative)
+	nap(10)
+	yg.current = pl
+	pl.Dispatch(First)
 
 	yg.Room.LeaveEvent(func(sess *agent.Session) {
 		pl := yg.players[sess.ToUint()]

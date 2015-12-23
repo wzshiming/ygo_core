@@ -32,6 +32,42 @@ const (
 	LC_SpellAndTrap = LC_Spell | LC_Trap
 )
 
+var lc = map[lc_type]string{
+	LC_None:            "NoneType",
+	LC_MonsterNormal:   "MonsterNormal",   //普通怪兽 黄色
+	LC_MonsterEffect:   "MonsterEffect",   //效果怪兽 橙色
+	LC_MonsterFusion:   "MonsterFusion",   //融合怪兽 紫色
+	LC_MonsterXyz:      "MonsterXyz",      //超量怪兽 黑色
+	LC_MonsterSynchro:  "MonsterSynchro",  //同调怪兽 白色
+	LC_MonsterRitual:   "MonsterRitual",   //仪式怪兽 蓝色
+	LC_SpellNormal:     "SpellNormal",     //普通魔法 通常
+	LC_SpellRitual:     "SpellRitual",     //仪式魔法
+	LC_SpellContinuous: "SpellContinuous", //永续魔法
+	LC_SpellEquip:      "SpellEquip",      //装备魔法
+	LC_SpellField:      "SpellField",      //场地魔法
+	LC_SpellQuickPlay:  "SpellQuickPlay",  //速攻魔法 速度2
+	LC_TrapNormal:      "TrapNormal",      //普通陷阱 速度2
+	LC_TrapContinuous:  "TrapContinuous",  //永续陷阱 速度2
+	LC_TrapCounter:     "TrapCounter",     //反击陷阱 速度3
+}
+
+func (c lc_type) String() (s string) {
+	if c != LC_None {
+		s = lc[c]
+		if s != "" {
+			return
+		}
+		for k, v := range lc {
+			if (k & c) != 0 {
+				s += v
+				s += ""
+			}
+		}
+		return
+	}
+	return lc[c]
+}
+
 // 怪兽属性 Attributes
 type la_type uint32
 
@@ -46,6 +82,34 @@ const (
 	LA_Dark                                  //暗
 	LA_Devine                                //神
 )
+
+var la = map[la_type]string{
+	LA_None:   "NoneAttr",
+	LA_Earth:  "Earth",  //地
+	LA_Water:  "Water",  //水
+	LA_Fire:   "Fire",   //火
+	LA_Wind:   "Wind",   //风
+	LA_Light:  "Light",  //光
+	LA_Dark:   "Dark",   //暗
+	LA_Devine: "Devine", //神
+}
+
+func (c la_type) String() (s string) {
+	if c != LA_None {
+		s = la[c]
+		if s != "" {
+			return
+		}
+		for k, v := range la {
+			if (k & c) != 0 {
+				s += v
+				s += ""
+			}
+		}
+		return
+	}
+	return la[c]
+}
 
 // 怪兽种族 Races
 type lr_type uint32
@@ -80,6 +144,49 @@ const (
 	//LR_DivineBeast   //幻龙族
 )
 
+var lr = map[lr_type]string{
+	LR_None:         "NoneRaces",
+	LR_Warrior:      "Warrior",      //战士族
+	LR_Spellcaster:  "Spellcaster",  //魔法使用族
+	LR_Fairy:        "Fairy",        //精灵族 天使族
+	LR_Fiend:        "Fiend",        //恶魔族
+	LR_Zombie:       "Zombie",       //不死族
+	LR_Machine:      "Machine",      //机械族
+	LR_Water:        "Water",        //水族
+	LR_Fire:         "Fire",         //炎族
+	LR_Rock:         "Rock",         //岩石族
+	LR_WingedBeast:  "WingedBeast",  //鸟兽族
+	LR_Plant:        "Plant",        //植物族
+	LR_Insect:       "Insect",       //昆虫族
+	LR_Thunder:      "Thunder",      //雷族
+	LR_Dragon:       "Dragon",       //龙族
+	LR_Beast:        "Beast",        //兽族
+	LR_BeastWarrior: "BeastWarrior", //兽战士族
+	LR_Dinosaur:     "Dinosaur",     //恐龙族
+	LR_Fish:         "Fish",         //鱼族
+	LR_SeaSerpent:   "SeaSerpent",   //海龙族
+	LR_Reptile:      "Reptile",      //爬虫族
+	LR_Psychic:      "Psychic",      //念动力族
+	LR_DivineBeast:  "DivineBeast",  //幻神兽族
+}
+
+func (c lr_type) String() (s string) {
+	if c != LR_None {
+		s = lr[c]
+		if s != "" {
+			return
+		}
+		for k, v := range lr {
+			if (k & c) != 0 {
+				s += v
+				s += ""
+			}
+		}
+		return
+	}
+	return lr[c]
+}
+
 // 表示形式 Expression
 type le_type uint32
 
@@ -99,6 +206,32 @@ const (
 	LE_ad = LE_Attack | LE_Defense
 	LE_fd = LE_FaceUp | LE_FaceDown
 )
+
+var le = map[le_type]string{
+	LE_None:     "NoneExpre",
+	LE_FaceUp:   "FaceUp",   // 正面朝上
+	LE_FaceDown: "FaceDown", // 正面朝下
+	LE_Attack:   "Attack",   // 攻击状态
+	LE_Defense:  "Defense",  // 守备状态
+
+}
+
+func (c le_type) String() (s string) {
+	if c != LE_None {
+		s = le[c]
+		if s != "" {
+			return
+		}
+		for k, v := range le {
+			if (k & c) != 0 {
+				s += v
+				s += ""
+			}
+		}
+		return
+	}
+	return le[c]
+}
 
 // 手牌主动方法 Initiative
 type li_type uint32
@@ -138,7 +271,7 @@ const (
 type lp_type uint32
 
 const (
-	//LP_None lp_type = 0
+	//LP_None    lp_type = 0
 	LP_Chain   lp_type = iota // 连锁
 	LP_Draw                   // 抽牌
 	LP_Standby                // 预备
@@ -150,6 +283,32 @@ const (
 	LP_Damage    // 战斗
 	LP_DamageCal // 战斗计算
 )
+
+var lp = map[lp_type]string{
+	//LP_None:    "NonePhase",
+	LP_Chain:   "Chain",   // 连锁
+	LP_Draw:    "Draw",    // 抽牌
+	LP_Standby: "Standby", // 预备
+	LP_Main1:   "Main1",   // 主阶段1
+	LP_Battle:  "Battle",  // 战斗
+	LP_Main2:   "Main2",   // 主阶段2
+	LP_End:     "End",     // 结束
+}
+
+func (c lp_type) String() (s string) {
+
+	s = lp[c]
+	if s != "" {
+		return
+	}
+	for k, v := range lp {
+		if (k & c) != 0 {
+			s += v
+			s += ""
+		}
+	}
+	return
+}
 
 // 卡牌放置位置 Locations
 type ll_type string
@@ -172,6 +331,10 @@ const (
 	LL_Portrait ll_type = "portrait" // 玩家头像
 )
 
+func (c ll_type) String() (s string) {
+	return string(c)
+}
+
 // 卡牌操作提示 Operation
 type lo_type string
 
@@ -182,34 +345,46 @@ const (
 	LO_MP lo_type = "MP"
 	LO_EP lo_type = "EP"
 
-	LO_Chain             lo_type = "Chain"
-	LO_Onset             lo_type = "Onset"
-	LO_Cover             lo_type = "Cover"
-	LO_Discard           lo_type = "Discard"
-	LO_Attack            lo_type = "Attack"
-	LO_Target            lo_type = "Target"
-	LO_Select            lo_type = "Select"
-	LO_Destroy           lo_type = "Destroy"
-	LO_DestroyAllMonster lo_type = "DestroyAllMonster"
-	LO_DestroyAMonster   lo_type = "DestroyAMonster"
-	LO_Freedom           lo_type = "Freedom"
-	LO_Cost              lo_type = "Cost"
-	LO_Expres            lo_type = "Expres"
-	LO_Popup             lo_type = "Popup"
-	LO_Summon            lo_type = "Summon"
-	LO_SummonFreedom     lo_type = "SummonFreedom"
-	LO_SummonSpecial     lo_type = "SummonSpecial"
-	LO_SummonFlip        lo_type = "SummonFlip"
-	LO_SetAttack         lo_type = "SetAttack"
-	LO_SetDefense        lo_type = "SetDefense"
-	LO_CoverFreedom      lo_type = "CoverFreedom"
-	LO_Removed           lo_type = "Removed"
-	LO_JoinHand          lo_type = "JoinHand"
-	LO_Puppet            lo_type = "Puppet"
-	LO_Equip             lo_type = "Equip"
-	LO_Fusion            lo_type = "Fusion"
-	LO_JoinDeckBot       lo_type = "JoinDeckBot"
-	LO_PutBack           lo_type = "PutBack"
-	LO_Reply             lo_type = "Reply"
-	LO_Hurt              lo_type = "Hurt"
+	LO_Chain               lo_type = "Chain"
+	LO_Onset               lo_type = "Onset"
+	LO_Cover               lo_type = "Cover"
+	LO_Discard             lo_type = "Discard"
+	LO_Attack              lo_type = "Attack"
+	LO_Target              lo_type = "Target"
+	LO_Select              lo_type = "Select"
+	LO_Destroy             lo_type = "Destroy"
+	LO_DestroyAny          lo_type = "DestroyAny"
+	LO_DestroyMonster      lo_type = "DestroyMonster"
+	LO_DestroySpell        lo_type = "DestroySpell"
+	LO_DestroyTrap         lo_type = "DestroyTrap"
+	LO_DestroySpellAndTrap lo_type = "DestroySpellAndTrap"
+	LO_SummonMonster       lo_type = "SummonMonster"
+	LO_Freedom             lo_type = "Freedom"
+	LO_Cost                lo_type = "Cost"
+	LO_Popup               lo_type = "Popup"
+	LO_Summon              lo_type = "Summon"
+	LO_SummonFreedom       lo_type = "SummonFreedom"
+	LO_SummonSpecial       lo_type = "SummonSpecial"
+	LO_SummonFlip          lo_type = "SummonFlip"
+	LO_SummonFusion        lo_type = "SummonFusion"
+	LO_Flip                lo_type = "Flip"
+	LO_SetAttack           lo_type = "SetAttack"
+	LO_SetDefense          lo_type = "SetDefense"
+	LO_CoverFreedom        lo_type = "CoverFreedom"
+	LO_JoinHand            lo_type = "JoinHand"
+	LO_Puppet              lo_type = "Puppet"
+	LO_Equip               lo_type = "Equip"
+	LO_Fusion              lo_type = "Fusion"
+	LO_JoinDeckBot         lo_type = "JoinDeckBot"
+	LO_PutBack             lo_type = "PutBack"
+	LO_Reply               lo_type = "Reply"
+	LO_Hurt                lo_type = "Hurt"
+	LO_Fence               lo_type = "Fence"
+	LO_DrawCard            lo_type = "DrawCard"
+	LO_RemovedMonster      lo_type = "RemovedMonster"
+	LO_Removed             lo_type = "Removed"
+	LO_TempChange          lo_type = "TempChange"
+	LO_Mitigation          lo_type = "Mitigation"
+	LO_Peek                lo_type = "Peek"
+	LO_LetDiscard          lo_type = "LetDiscard"
 )

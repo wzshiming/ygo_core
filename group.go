@@ -1,6 +1,8 @@
 package ygo_core
 
 import (
+	"fmt"
+
 	"github.com/wzshiming/dispatcher"
 )
 
@@ -18,6 +20,10 @@ func NewGroup(pl *Player, name ll_type) *Group {
 		name:   name,
 		Cards:  *NewCards(),
 	}
+}
+
+func (cp *Group) String() string {
+	return fmt.Sprintf("%s(%d)", cp.GetName(), cp.Len())
 }
 
 func (cp *Group) GetOwner() *Player {
@@ -56,10 +62,42 @@ func (cp *Group) EndPop() (c *Card) {
 	return cp.Remove(0)
 }
 
+func (cp *Group) EndPeek(i int) *Cards {
+	cs := NewCards()
+	if i <= 0 {
+		return cs
+	}
+	l := cp.Len()
+	if i > l {
+		i = l
+	}
+	for j := 0; j != i; j++ {
+		cs.EndPush(cp.Cards[j])
+	}
+	return cs
+}
+
+func (cp *Group) BeginPeek(i int) *Cards {
+	cs := NewCards()
+	if i <= 0 {
+		return cs
+	}
+	l := cp.Len()
+	if i > l {
+		i = l
+	}
+
+	for j := 0; j != i; j++ {
+		cs.EndPush(cp.Cards[l-j-1])
+	}
+	return cs
+}
+
 func (cp *Group) Remove(index int) (c *Card) {
 	c = cp.Cards.Remove(index)
 	if c != nil {
 		c.place = nil
+		c.lastPlace = cp
 		c.Dispatch(Out + string(cp.GetName()))
 	}
 	return
@@ -69,6 +107,7 @@ func (cp *Group) PickedForUniq(uniq uint) (c *Card) {
 	c = cp.Cards.PickedForUniq(uniq)
 	if c != nil {
 		c.place = nil
+		c.lastPlace = cp
 		c.Dispatch(Out + string(cp.GetName()))
 	}
 	return

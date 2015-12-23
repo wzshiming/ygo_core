@@ -5,6 +5,8 @@ type event string
 const (
 	// 玩家事件  注意玩家事件没有 之前之后 的前缀符
 	None       = ""
+	First      = "First"      // 先手
+	Initiative = "Initiative" // 游戏开始初
 	RoundBegin = "RoundBegin" // 回合开始之前
 	DP         = "DP"         // 抽排阶段
 	SP         = "SP"         // 预备阶段
@@ -16,7 +18,7 @@ const (
 	Draw       = "Draw"       // 每次抽排
 	DrawNum    = "DrawNum"    // 每抽一张牌
 	ChangeLp   = "ChangeLp"   // 生命值改变
-	expres     = "expres"     // 改变表示形式 由用户指定主阶段的怪兽卡发出 由于卡牌效果也能触发改变表示形式的事件  这个独立出来做用户触发用
+	//expres     = "expres"     // 改变表示形式 由用户指定主阶段的怪兽卡发出 由于卡牌效果也能触发改变表示形式的事件  这个独立出来做用户触发用
 
 	Use1 = "Use1" // 用户按钮1
 	Use2 = "Use2" // 用户按钮2
@@ -32,7 +34,7 @@ const (
 	// 主阶段事件
 	Cover         = "Cover"         // 覆盖
 	Onset         = "Onset"         // 主动发动
-	Summon        = "Summon"        // 召唤
+	Summon        = "Summon"        // 通常召唤
 	SummonFlip    = "SummonFlip"    // 反转召唤
 	SummonSpecial = "SummonSpecial" // 特殊召唤
 	//特殊召唤 子事件
@@ -93,9 +95,10 @@ const (
 	CheckTrap  = "CheckTrap"
 	UseTrap    = "UseTrap" // 使用陷阱卡
 
-	Equip       = "Equip"
-	EquipTarget = "EquipTarget"
-	EquipMissed = "EquipMissed"
-	EquipFlash  = "EquipFlash"
-	EquipList   = "EquipList"
+	equipEffect = "equip"
+	equipTarget = "equipTarget"
+	equipMissed = "equipMissed"
+	equipList   = "equipList"
+
+	usedOver = "over" // 使用结束了
 )

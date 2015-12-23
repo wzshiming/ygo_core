@@ -2,22 +2,60 @@ package ygo_core
 
 import "fmt"
 
-func (ca *Card) Init() {
-	ca.Empty()
-	ca.appendOriginal = *ca.baseOriginal
-	ca.isValid = true
-	ca.SetNotDirect()
-	ca.RecoverSummoner()
-	ca.registerNormal()
-	ca.baseOriginal.Initialize.Call(ca)
-}
-
 func NewPortraitCardOriginal() *CardOriginal {
 	return &CardOriginal{
 		IsValid: true,
 		Lc:      LC_None,
 		Initialize: func(ca *Card) bool {
+
 			ca.RangeGlobal(InPortrait, OutPortrait, Arg{
+				Initiative: func() {
+					pl := ca.GetSummoner()
+					pl.DrawCard(5)
+					pl.ChangeLp(8000)
+				},
+				First: func() {
+					pl := ca.GetSummoner()
+					if !pl.IsCurrent() {
+						return
+					}
+
+					pl.MsgPub("msg.001", nil)
+					ca.RegisterGlobalListen(BP, func(tar *Player) {
+						tar.Mzone().ForEach(func(c *Card) bool {
+							c.SetNotCanAttack()
+							return true
+						})
+					})
+					ca.RegisterGlobalListen(RoundEnd, func() {
+						ca.UnregisterAllGlobalListen()
+					})
+				},
+				RoundBegin: func() {
+					pl := ca.GetSummoner()
+					if !pl.IsCurrent() {
+						return
+					}
+					pl.SetCanSummon()
+					pl.Mzone().ForEach(func(c0 *Card) bool {
+						c0.SetCanAttack()
+						c0.SetCanChange()
+						return true
+					})
+				},
+				RoundEnd: func() {
+					pl := ca.GetSummoner()
+					if !pl.IsCurrent() {
+						return
+					}
+					tar := pl.GetTarget()
+					e := func(c0 *Card) bool {
+						c0.EquipFlash()
+						return true
+					}
+					pl.Mzone().ForEach(e)
+					tar.Mzone().ForEach(e)
+				},
 				DP: func() {
 					pl := ca.GetSummoner()
 					if !pl.IsCurrent() {
@@ -46,12 +84,14 @@ func NewPortraitCardOriginal() *CardOriginal {
 							pl.tophases = LP_End
 						})
 					}
+
 				},
 				BP: func() {
 					pl := ca.GetSummoner()
 					if !pl.IsCurrent() {
 						return
 					}
+
 					ca.PushChain(LO_MP, func() {
 						pl.noskip = false
 						pl.tophases = LP_Main2
@@ -71,7 +111,7 @@ func NewPortraitCardOriginal() *CardOriginal {
 						pl.resetReplyTime()
 						pl.Msg("103", nil)
 						for k := 0; k != i; k++ {
-							ca := pl.SelectForWarn(LO_Discard, pl.Hand())
+							ca := pl.SelectRequired(LO_Discard, pl.Hand())
 							if ca == nil {
 								ca = pl.Hand().EndPop()
 							}
@@ -228,11 +268,28 @@ func (ca *Card) registerSpellAndTrap() {
 	}
 
 	if ca.IsTrap() {
+		ca.Range(InHand, OutHand, Arg{
+			Pre + Cover: e1,
+		})
 
-		//		ca.Range(InHand, OutHand, Arg{
-		//			Pre + UseTrap: e2,
-		//			Pre + Cover:   e1,
-		//		})
+		ca.Range(InSzone, OutSzone, Arg{
+			Pre + UseTrap: e2,
+		})
+		ca.RangeGlobal(InHand, OutHand, Arg{
+			MP: func() {
+				pl := ca.GetSummoner()
+				if !pl.IsCurrent() {
+					return
+				}
+				if pl.Szone().Len() >= 5 {
+					return
+				}
+
+				ca.PushChain(LO_Cover, func() {
+					ca.Dispatch(Cover)
+				})
+			},
+		})
 
 	} else if ca.IsSpell() {
 		// 注册 使用 为 发动魔法卡
@@ -300,42 +357,42 @@ func (ca *Card) registerSpellAndTrap() {
 
 }
 
-// 注册一张陷阱卡
-func (ca *Card) registerTrap(event string, e interface{}, only bool) {
+//// 注册一张陷阱卡
+//func (ca *Card) registerTrap(event string, e interface{}, only bool) {
 
-	//注册 陷阱卡 放置后的事件
-	ca.AddEvent(InSzone, func() {
-		pl := ca.GetSummoner()
-		//注册 下回合才能 连锁事件
-		pl.OnlyOnce(RoundEnd, func() {
-			//ca.registerIgnitionSelector(event, e, UseTrap)
-		}, ca, event, e)
-	}, event, e)
+//	//注册 陷阱卡 放置后的事件
+//	ca.AddEvent(InSzone, func() {
+//		pl := ca.GetSummoner()
+//		//注册 下回合才能 连锁事件
+//		pl.OnlyOnce(RoundEnd, func() {
+//			//ca.registerIgnitionSelector(event, e, UseTrap)
+//		}, ca, event, e)
+//	}, event, e)
 
-	//注册 陷阱卡发动事件
-	ca.AddEvent(UseTrap, func() {
-		pl := ca.GetSummoner()
-		if ca.IsValid() {
-			ca.Dispatch(Chain)
-			pl.MsgPub("msg.023", Arg{"self": ca.ToUint()})
-			if only {
-				ca.Dispatch(Depleted)
-			}
-		} else {
-			pl.MsgPub("msg.024", Arg{"self": ca.ToUint()})
-		}
-	})
-}
+//	//注册 陷阱卡发动事件
+//	ca.AddEvent(UseTrap, func() {
+//		pl := ca.GetSummoner()
+//		if ca.IsValid() {
+//			ca.Dispatch(Chain)
+//			pl.MsgPub("msg.023", Arg{"self": ca.ToUint()})
+//			if only {
+//				ca.Dispatch(Depleted)
+//			}
+//		} else {
+//			pl.MsgPub("msg.024", Arg{"self": ca.ToUint()})
+//		}
+//	})
+//}
 
-// 注册一张不通常的陷阱卡
-func (ca *Card) RegisterTrapUnnormal(event string, e interface{}) {
-	ca.registerTrap(event, e, false)
-}
+//// 注册一张不通常的陷阱卡
+//func (ca *Card) RegisterTrapUnnormal(event string, e interface{}) {
+//	ca.registerTrap(event, e, false)
+//}
 
-// 注册一张通常的陷阱卡
-func (ca *Card) RegisterTrapNormal(event string, e interface{}) {
-	ca.registerTrap(event, e, true)
-}
+//// 注册一张通常的陷阱卡
+//func (ca *Card) RegisterTrapNormal(event string, e interface{}) {
+//	ca.registerTrap(event, e, true)
+//}
 
 // 推送卡牌使之能连锁 玩家可以选择这张卡发动效果
 func (ca *Card) PushChain(lo lo_type, e interface{}) {
@@ -395,60 +452,13 @@ func (ca *Card) RegisterFlip(f interface{}) {
 	ca.AddEvent(Flip, f)
 }
 
-// 注册融合怪兽的融合材料
-func (ca *Card) RegisterMonsterFusion(names ...string) {
-	h := map[string]int{}
-	for _, v := range names {
-		h[v]++
-	}
-	ca.Range(InExtra, OutExtra, Arg{
-		Pre + SummonFusion: func(s string) {
-			pl := ca.GetSummoner()
-			se := NewCards()
-			cs := NewCards(pl.Hand(), pl.Mzone())
-			for k, v := range h {
-				is := cs.Find(func(c *Card) bool {
-					return c.GetName() == k
-				})
-				if is.Len() == v {
-					is.ForEach(func(c *Card) bool {
-						se.EndPush(c)
-						return true
-					})
-				} else if is.Len() > v {
-					for i := 0; i != v; i++ {
-						tm := pl.SelectForWarn(LO_Fusion, is)
-						if tm == nil {
-							pl.MsgPub("msg.041", Arg{"self": ca.ToUint()})
-							ca.StopOnce(s)
-							return
-						}
-						is.PickedFor(tm)
-						se.EndPush(tm)
-					}
-				} else {
-					pl.MsgPub("msg.042", Arg{"self": ca.ToUint()})
-					ca.StopOnce(s)
-					return
-				}
-			}
-			se.ForEach(func(c *Card) bool {
-				c.Dispatch(Cost)
-				return true
-			})
-		},
-		SummonFusion: func() {
-			ca.Dispatch(SummonSpecial)
-		},
-	})
-}
-
 // 注册一张怪兽卡
 func (ca *Card) registerMonster() {
 
 	// 召唤 特殊召唤 翻转召唤 设置卡片正面朝上攻击表示 不变
 	ca.AddEventPre(SummonSpecial, ca.SetFaceUpAttack)
 	ca.AddEventPre(SummonFlip, ca.SetFaceUpAttack)
+	ca.AddEventPre(Summon, ca.SetFaceUpAttack)
 	ca.AddEventPre(Summon, ca.SetFaceUpAttack)
 
 	// 翻转 设置卡片正面朝上 不变
@@ -462,14 +472,12 @@ func (ca *Card) registerMonster() {
 		pl.MsgPub("msg.043", Arg{"self": ca.ToUint()})
 	})
 
-	e0 := func() {
-		ca.Dispatch(FaceUp)
-	}
-	ca.AddEvent(Flip, e0)
-	ca.AddEvent(Summon, e0)
-	ca.AddEvent(SummonSpecial, e0)
-
-	ca.AddEvent(FaceUp, ca.ShowInfo)
+	ca.AddEvent(InMzone, func() {
+		if ca.IsFaceUp() {
+			ca.Dispatch(FaceUp)
+			ca.ShowInfo()
+		}
+	})
 
 	e := func(s string) {
 
@@ -485,7 +493,7 @@ func (ca *Card) registerMonster() {
 			pl.MsgPub("msg.044", Arg{"self": ca.ToUint(), "size": i})
 		}
 		for k := 0; k < i; {
-			if t := pl.SelectForWarn(LO_Freedom, pl.Mzone()); t != nil {
+			if t := pl.SelectRequired(LO_Freedom, pl.Mzone()); t != nil {
 				t.Dispatch(Freedom, ca, &k)
 			} else {
 				ca.StopOnce(s)
@@ -508,6 +516,7 @@ func (ca *Card) registerMonster() {
 			ca.SetNotCanChange()
 			pl.MsgPub("msg.046", Arg{"self": ca.ToUint()})
 		},
+
 		// 覆盖
 		Cover: func() {
 			pl := ca.GetSummoner()
@@ -520,20 +529,6 @@ func (ca *Card) registerMonster() {
 
 	ca.Range(InMzone, OutMzone, Arg{
 
-		// 刷新装备
-		EquipFlash: func() {
-			ca.appendOriginal = *ca.baseOriginal
-
-			ca.ForEventEach(EquipList, func(s string, i interface{}) {
-				if v, ok := i.(*Card); ok {
-					v.Dispatch(Equip, ca)
-				}
-			})
-
-			if ca.IsFaceUp() {
-				ca.ShowInfo()
-			}
-		},
 		// 被解放
 		Freedom: func(c *Card, i *int) {
 			pl := ca.GetSummoner()
@@ -548,11 +543,12 @@ func (ca *Card) registerMonster() {
 		SummonFlip: func() {
 			pl := ca.GetSummoner()
 			pl.MsgPub("msg.061", Arg{"self": ca.ToUint()})
-			ca.Dispatch(Flip)
+			//ca.Dispatch(Flip)
 		},
 
 		// 翻转
 		Flip: func() {
+			ca.ShowInfo()
 			pl := ca.GetSummoner()
 			pl.MsgPub("msg.062", Arg{"self": ca.ToUint()})
 		},
@@ -571,10 +567,10 @@ func (ca *Card) registerMonster() {
 				pl.MsgPub("msg.063", Arg{"self": ca.ToUint()})
 			}
 
-			//b := false
+			b := false
 			if c != nil {
-				//b = c.IsFaceDown()
-				ca.SetFaceUp()
+				b = c.IsFaceDown()
+				ca.setFaceUp()
 				if ca.IsInMzone() && c.IsInMzone() {
 					ca.Dispatch(DamageStep, c)
 				}
@@ -583,9 +579,9 @@ func (ca *Card) registerMonster() {
 					ca.Dispatch(DamageStep)
 				}
 			}
-			//			if b {
-			//				c.Dispatch(Flip)
-			//			}
+			if b {
+				c.Dispatch(Flip)
+			}
 		},
 		Deduct: func(tar *Player, i int) {
 			tar.ChangeLp(i)
@@ -707,7 +703,10 @@ func (ca *Card) registerMonster() {
 			if !pl.IsCurrent() {
 				return
 			}
-			if !ca.IsCanAttack() || ca.IsDefense() {
+			if !ca.IsCanAttack() {
+				return
+			}
+			if !ca.IsFaceUpAttack() {
 				return
 			}
 			ca.PushChain(LO_Attack, func() {
@@ -716,8 +715,13 @@ func (ca *Card) registerMonster() {
 					c := pl.SelectRequiredShor(LO_Target, tar.Portrait())
 					ca.Dispatch(Declaration, c)
 				} else {
-					c := pl.SelectRequiredShor(LO_Target, tar.Mzone())
-					ca.Dispatch(Declaration, c)
+					if ca.IsCanDirect() {
+						c := pl.SelectRequiredShor(LO_Target, tar.Mzone(), tar.Portrait())
+						ca.Dispatch(Declaration, c)
+					} else {
+						c := pl.SelectRequiredShor(LO_Target, tar.Mzone())
+						ca.Dispatch(Declaration, c)
+					}
 				}
 			})
 		},
