@@ -5,7 +5,7 @@ import "fmt"
 func NewPortraitCardOriginal() *CardOriginal {
 	return &CardOriginal{
 		IsValid: true,
-		Lc:      LC_None,
+		Lt:      LT_None,
 		Initialize: func(ca *Card) bool {
 
 			ca.RangeGlobal(InPortrait, OutPortrait, Arg{
@@ -70,18 +70,14 @@ func NewPortraitCardOriginal() *CardOriginal {
 					}
 					if pl.phases == LP_Main1 {
 						ca.PushChain(LO_BP, func() {
-							pl.noskip = false
-							pl.tophases = LP_Battle
-
+							pl.Skip(LP_Battle)
 						})
 						ca.PushChain(LO_EP, func() {
-							pl.noskip = false
-							pl.tophases = LP_End
+							pl.Skip(LP_End)
 						})
 					} else {
 						ca.PushChain(LO_EP, func() {
-							pl.noskip = false
-							pl.tophases = LP_End
+							pl.Skip(LP_End)
 						})
 					}
 
@@ -93,13 +89,11 @@ func NewPortraitCardOriginal() *CardOriginal {
 					}
 
 					ca.PushChain(LO_MP, func() {
-						pl.noskip = false
-						pl.tophases = LP_Main2
+						pl.Skip(LP_Main2)
 
 					})
 					ca.PushChain(LO_EP, func() {
-						pl.noskip = false
-						pl.tophases = LP_End
+						pl.Skip(LP_End)
 					})
 				},
 				EP: func() {
@@ -126,7 +120,7 @@ func NewPortraitCardOriginal() *CardOriginal {
 }
 
 func (ca *Card) registerNormal() {
-	if ca.GetType() == LC_None {
+	if ca.GetType() == LT_None {
 		return
 	}
 
@@ -179,7 +173,7 @@ func (ca *Card) registerNormal() {
 	})
 
 	// 失效
-	ca.AddEvent(Disabled, func() {
+	ca.AddEventSuf(Disabled, func() {
 		ca.UnregisterAllGlobalListen()
 		//pl := ca.GetSummoner()
 		//pl.MsgPub("msg.016", Arg{"self": ca.ToUint()})
@@ -201,7 +195,7 @@ func (ca *Card) registerNormal() {
 		ca.Dispatch(Cover)
 	})
 
-	if ca.IsTrap() {
+	if ca.GetType().IsTrap() {
 		ca.AddEvent(Use1, func() {
 			ca.Dispatch(Cover)
 		})
@@ -214,27 +208,37 @@ func (ca *Card) registerNormal() {
 		})
 	}
 
-	e := func() {
-		ca.Dispatch(Disabled)
-	}
-
-	if ca.IsMonster() {
+	if ca.GetType().IsMonster() {
 		ca.registerMonster()
+		e := func() {
+			lp := ca.GetLastPlace()
+			if lp.IsMzone() || lp.IsHand() {
+				ca.Dispatch(Disabled)
+			}
+		}
+
 		ca.AddEvent(InGrave, e)
 		ca.AddEvent(InRemoved, e)
 		ca.AddEvent(InSzone, e)
-		ca.AddEvent(InMzone, func() {
-			ca.AddEvent(InHand, e)
-			ca.AddEvent(InDeck, e)
-		})
+		ca.AddEvent(InHand, e)
+		ca.AddEvent(InDeck, e)
 
-		if ca.IsExtra() {
+		if ca.GetType().IsExtra() {
 			ca.AddEvent(InDeck, ca.ToExtra)
 			ca.AddEvent(InHand, ca.ToExtra)
 		}
 
-	} else if ca.IsSpellAndTrap() {
+	} else if ca.GetType().IsSpellField() {
 		ca.registerSpellAndTrap()
+		e := func() {
+			ca.Dispatch(Disabled)
+		}
+		ca.AddEvent(OutField, e)
+	} else if ca.GetType().IsSpellAndTrap() {
+		ca.registerSpellAndTrap()
+		e := func() {
+			ca.Dispatch(Disabled)
+		}
 		ca.AddEvent(OutSzone, e)
 	} else {
 		Debug("registerNormal", ca)
@@ -246,7 +250,7 @@ func (ca *Card) registerSpellAndTrap() {
 	// 先覆盖
 	e1 := func(s string) {
 		pl := ca.GetSummoner()
-		if ca.IsSpellField() {
+		if ca.GetType().IsSpellField() {
 			ca.ToField()
 		} else {
 			ca.ToSzone()
@@ -267,7 +271,7 @@ func (ca *Card) registerSpellAndTrap() {
 		pl.MsgPub("msg.022", Arg{"self": ca.ToUint()})
 	}
 
-	if ca.IsTrap() {
+	if ca.GetType().IsTrap() {
 		ca.Range(InHand, OutHand, Arg{
 			Pre + Cover: e1,
 		})
@@ -291,11 +295,11 @@ func (ca *Card) registerSpellAndTrap() {
 			},
 		})
 
-	} else if ca.IsSpell() {
+	} else if ca.GetType().IsSpell() {
 		// 注册 使用 为 发动魔法卡
 
 		ff := string(LL_Szone)
-		if ca.IsSpellField() {
+		if ca.GetType().IsSpellField() {
 			ff = string(LL_Field)
 		}
 
@@ -307,7 +311,7 @@ func (ca *Card) registerSpellAndTrap() {
 			// 代价 先覆盖
 			Pre + UseSpell: func(s string) {
 				e1(s)
-				if ca.IsSpellField() {
+				if ca.GetType().IsSpellField() {
 					if ca.IsInField() {
 						e2()
 					}
@@ -463,6 +467,11 @@ func (ca *Card) registerMonster() {
 
 	// 翻转 设置卡片正面朝上 不变
 	ca.AddEventPre(Flip, ca.SetFaceUp)
+
+	// 面朝下 结束 效果 或者  离开场地时
+	ca.AddEventSuf(OutMzone, func() {
+		ca.Dispatch(FaceDown)
+	})
 
 	// 特殊召唤  不变
 	ca.AddEvent(SummonSpecial, func() {

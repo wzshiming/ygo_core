@@ -88,7 +88,15 @@ func (ca *Card) effectEquipSimpleOver() {
 		c.EquipFlash()
 		return true
 	})
+}
 
+// 刷新装备对象
+func (ca *Card) EquipTargetFlash() {
+	ca.ForEventEach(equipTarget, func(s string, i interface{}) {
+		if c, ok := i.(*Card); ok {
+			c.EquipFlash()
+		}
+	})
 }
 
 // 给卡牌 添加 在场上的 装备效果
@@ -120,7 +128,6 @@ func (ca *Card) effectEquipBind(c *Card) {
 func (ca *Card) equipBind(c *Card, e func(*Card)) {
 	ca.effectEquipRegister(e)
 	ca.effectEquipBind(c)
-
 }
 
 // 装备 简易的装备流程
@@ -164,9 +171,25 @@ func (ca *Card) EquipSimpleTemp(c *Card, eve string, e func(*Card)) {
 	})
 }
 
+// 光环 场上所有符合条件的目标
+func (ca *Card) EffectMzoneHalo(e func(*Card)) {
+	ca.effectMzoneHalo(e, true)
+}
+
+// 光环 场上所有符合条件的目标 直到自身被破坏
+func (ca *Card) EffectExistMzoneHalo(e func(*Card)) {
+	ca.EffectMzoneHalo(e)
+
+	ca.Range("", usedOver, Arg{
+		Disabled: func() {
+			ca.effectEquipSimpleOver()
+		},
+	})
+}
+
 // 光环 场上所有符合条件的目标 直到某一个事件
 func (ca *Card) EffectTempMzoneHalo(eve string, e func(*Card)) {
-	ca.effectMzoneHalo(e, true)
+	ca.EffectMzoneHalo(e)
 	ca.RangeGlobal("", usedOver, Arg{
 		eve: func() {
 			ca.effectEquipSimpleOver()
@@ -174,8 +197,8 @@ func (ca *Card) EffectTempMzoneHalo(eve string, e func(*Card)) {
 	})
 }
 
-// 装备效果 根据某个地方的牌的数量 刷新自身
-func (ca *Card) effectAreaSize(c *Card, ll ll_type, a Action, f func(i int, c0 *Card)) {
+// 装备效果 根据自己某个地方的牌的数量 刷新自身
+func (ca *Card) effectAreaSize(c *Card, ll ll_type, b bool, a Action, f func(i int, c0 *Card)) {
 	ca.RangeGlobal("", Disabled, Arg{
 		Suf + In + string(ll):  c.EquipFlash,
 		Suf + Out + string(ll): c.EquipFlash,
@@ -183,12 +206,17 @@ func (ca *Card) effectAreaSize(c *Card, ll ll_type, a Action, f func(i int, c0 *
 	ca.equipSimple(c, func(c0 *Card) {
 		pl := c.GetSummoner()
 		i := 0
-		pl.getArea(ll).ForEach(func(c0 *Card) bool {
+		e := func(c0 *Card) bool {
 			if a.Call(c0) {
 				i++
 			}
 			return true
-		})
+		}
+		pl.getArea(ll).ForEach(e)
+		if b {
+			tar := pl.GetTarget()
+			tar.getArea(ll).ForEach(e)
+		}
 		f(i, c0)
 	})
 }
@@ -426,12 +454,22 @@ func (ca *Card) RegisterMonsterEffect2(e func(*Card)) {
 	ca.AddEvent(OutMzone, e1)
 }
 
-// 怪兽效果 封装 根据某个地方的牌的数量 刷新自身
-func (ca *Card) RegisterMonsterEffect3(ll ll_type, a Action, f func(i int, c0 *Card)) {
-	ca.AddEvent(FaceUp, func() {
-		ca.effectAreaSize(ca, ll, a, f)
-	})
+func (ca *Card) RegisterMonsterFaceUp(e interface{}) {
+	ca.AddEvent(FaceUp, e)
+}
 
+// 怪兽效果 封装 根据自己的某个地方的牌的数量 刷新自身
+func (ca *Card) RegisterMonsterSelfAreaSize(ll ll_type, a Action, f func(i int, c0 *Card)) {
+	ca.AddEvent(FaceUp, func() {
+		ca.effectAreaSize(ca, ll, false, a, f)
+	})
+}
+
+// 怪兽效果 封装 根据自己的某个地方的牌的数量 刷新自身
+func (ca *Card) RegisterMonsterAllAreaSize(ll ll_type, a Action, f func(i int, c0 *Card)) {
+	ca.AddEvent(FaceUp, func() {
+		ca.effectAreaSize(ca, ll, true, a, f)
+	})
 }
 
 // 控制权变更

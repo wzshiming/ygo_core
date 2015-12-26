@@ -116,6 +116,14 @@ func (pl *Player) Deck() *Group {
 	return pl.getArea(LL_Deck)
 }
 
+func (pl *Player) DeckTop(i int) *Cards {
+	return pl.Deck().EndPeek(i)
+}
+
+func (pl *Player) DeckBot(i int) *Cards {
+	return pl.Deck().BeginPeek(i)
+}
+
 func (pl *Player) Mzone() *Group {
 	return pl.getArea(LL_Mzone)
 }
@@ -207,9 +215,15 @@ func (pl *Player) MsgPub(fmts string, a Arg) {
 
 func (pl *Player) Fail() {
 	pl.fail = true
-	//pl.Empty()
+	pl.Skip(LP_End)
+	pl.outTime()
 	pl.AddCode(0, uint(LP_End))
 	pl.AddCode(0, uint(LP_End))
+}
+
+func (pl *Player) Skip(lp lp_type) {
+	pl.noskip = false
+	pl.tophases = lp
 }
 
 func (pl *Player) IsFail() bool {
@@ -520,54 +534,14 @@ func (pl *Player) selectFor() (*Card, uint) {
 	return nil, p.Method
 }
 
-//func (pl *Player) SelectForPopup(lo lo_type, ci ...interface{}) *Card {
-//	css := NewCards(ci...)
-//	css.ForEach(func(c *Card) bool {
-//		c.Peek()
-//		return true
-//	})
-//	return pl.SelectRequired(lo, css)
-//}
-
-//func (pl *Player) selectForMain(cc ...interface{}) (c *Card, u uint) {
-//	b := map[lo_type][]interface{}{}
-//	e := true
-//	n := LO_None
-//	for _, v := range cc {
-//		if s, ok := v.(lo_type); ok {
-//			if !e {
-//				n = LO_None
-//				e = true
-//			}
-//			if n != LO_None {
-//				n += ","
-//			}
-//			n += s
-//		} else {
-//			b[n] = append(b[n], v)
-//			e = false
-//		}
-//	}
-//	css := NewCards()
-//	for k, v := range b {
-//		cs := NewCards(v...)
-//		css.Join(cs)
-//		pl.call(setPick(k, cs, pl))
-//	}
-
-//	defer pl.call(cloPick(pl))
-//	if c, u = pl.selectFor(); c != nil {
-//		if css.IsExistCard(c) {
-//			return
-//		}
-//	}
-//	return nil, u
-//}
-
 func (pl *Player) selectForSelf(ci ...interface{}) (c *Card, u uint) {
 	css := NewCards(ci...)
-
 	pl.call(setPickRe(css, pl))
+	if css.Len() == 0 {
+		// 如果连锁时没有可以发动的卡 延迟一段时间 直接返回 照顾手残党
+		nap(RandInt(20) + 5)
+		return nil, LI_No
+	}
 	defer pl.call(cloPick(pl))
 	if c, u = pl.selectFor(); c != nil {
 		if css.IsExistCard(c) {
@@ -576,52 +550,6 @@ func (pl *Player) selectForSelf(ci ...interface{}) (c *Card, u uint) {
 	}
 	return nil, u
 }
-
-//func (pl *Player) selectForWarn(lo lo_type, ci ...interface{}) (c *Card, u uint) {
-//	css := NewCards(ci...)
-//	pl.call(setPick(lo, css, pl))
-//	defer pl.call(cloPick(pl))
-//	if c, u = pl.selectFor(); c != nil {
-//		if css.IsExistCard(c) {
-//			return
-//		}
-//	}
-//	return nil, u
-//}
-
-//// 用户选择卡牌 如果 少于i则直接返回 最后一个卡牌
-
-//func (pl *Player) SelectForWarnShort(lo lo_type, i int, ci ...interface{}) (c *Card) {
-//	css := NewCards(ci...)
-//	if css.Len() == 0 {
-//		return nil
-//	} else if css.Len() <= i {
-//		return css.EndPop()
-//	}
-//	for c == nil {
-//		c = pl.SelectForWarn(lo, css)
-//	}
-//	return
-//}
-
-//// 直到用户选择正确的卡牌
-
-//func (pl *Player) SelectForWarn(lo lo_type, ci ...interface{}) *Card {
-//	css := NewCards(ci...)
-//	pl.call(setPick(lo, css, pl))
-//	defer pl.call(cloPick(pl))
-//	for {
-//		c, u := pl.selectFor()
-//		if c != nil && css.IsExistCard(c) {
-//			return c
-//		}
-
-//		if pl.IsOutTime() || u == LI_No || css.Len() == 0 {
-//			return nil
-//		}
-//	}
-//	return nil
-//}
 
 //  可选一个卡牌 如果超时则返回nil
 
@@ -676,13 +604,14 @@ func (pl *Player) SelectRequiredRange(i, j int, lo lo_type, ci ...interface{}) *
 			css0.EndPush(c)
 			css.PickedFor(c)
 			pl.call(cloPickOne(pl, c))
-		} else if css.Len() >= i && (pl.IsOutTime() || u == LI_No) {
-			return css0
-		}
-		if pl.IsOutTime() {
+		} else if u == LI_No && css.Len() >= i {
+			break
+		} else if pl.IsOutTime() {
+			if css.Len() >= i {
+				break
+			}
 			css0.EndPush(css.EndPop())
 		}
-
 	}
 	return css0
 }

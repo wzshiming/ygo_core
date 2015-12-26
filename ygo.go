@@ -93,7 +93,7 @@ func (yg *YGO) GetEventUniq() uint {
 
 func (yg *YGO) chain(eventName string, ca *Card, pl *Player, args []interface{}) {
 	// 全局连锁中转站
-	yg.eventSize++
+
 	// 给补上缺省值
 	if ca != nil {
 		oe := ca.lastEvent
@@ -128,8 +128,9 @@ func (yg *YGO) chain(eventName string, ca *Card, pl *Player, args []interface{})
 	cs := NewCards()
 	// 广播全局事件
 	e := func() {
-		yg.EmptyEvent(Chain)
+		yg.eventSize++
 		cs.Clear()
+		yg.EmptyEvent(Chain)
 		yg.Dispatch(eventName, args...)
 
 		yg.ForEventEach(Chain, func(n string, i interface{}) {
@@ -218,6 +219,19 @@ func (yg *YGO) Loop() {
 		}
 	}()
 
+	//必要连锁初始化
+	yg.registerBothEvent(Summon)
+	yg.registerBothEvent(SummonFlip)
+	yg.registerBothEvent(SummonSpecial)
+	yg.registerBothEvent(Declaration)
+	yg.registerBothEvent(UseTrap)
+	yg.registerBothEvent(UseSpell)
+	//yg.registerMultiEvent(DP)
+	yg.registerMultiEvent(SP)
+	yg.registerMultiEvent(MP)
+	yg.registerMultiEvent(BP)
+	//yg.registerMultiEvent(EP)
+
 	// 服务端初始化
 	for k, _ := range yg.players {
 		yg.round = append(yg.round, k)
@@ -249,30 +263,17 @@ func (yg *YGO) Loop() {
 		yg.players[v].call("init", gi)
 	}
 
+	//nap(10) // 牌组初始化
+	for _, v := range yg.round {
+		yg.players[v].initDeck()
+	}
+
 	//nap(10) // 界面初始化
 	i := 31
 	for _, v := range yg.round {
 		i++
 		yg.players[v].initPlayer(i)
 	}
-
-	//nap(10) // 牌组初始化
-	for _, v := range yg.round {
-		yg.players[v].initDeck()
-	}
-
-	//必要连锁初始化
-	yg.registerBothEvent(Summon)
-	yg.registerBothEvent(SummonFlip)
-	yg.registerBothEvent(SummonSpecial)
-	yg.registerBothEvent(Declaration)
-	yg.registerBothEvent(UseTrap)
-	yg.registerBothEvent(UseSpell)
-	//yg.registerMultiEvent(DP)
-	yg.registerMultiEvent(SP)
-	yg.registerMultiEvent(MP)
-	yg.registerMultiEvent(BP)
-	//yg.registerMultiEvent(EP)
 
 	nap(10) // 游戏开始
 	pl := yg.getPlayerForIndex(0)
@@ -289,7 +290,7 @@ func (yg *YGO) Loop() {
 loop:
 	for {
 		for _, v := range yg.round {
-			nap(5)
+			nap(1)
 			yg.current = yg.players[v]
 			yg.current.round()
 			yg.forEachPlayer(func(pl *Player) {

@@ -118,3 +118,48 @@ func (cp *Group) PickedFor(c *Card) {
 		cp.PickedForUniq(c.ToUint())
 	}
 }
+
+// 是在场地
+func (p *Group) IsField() bool {
+	return p != nil && p.GetName() == LL_Field
+}
+
+// 是在卡组
+func (p *Group) IsDeck() bool {
+	return p != nil && p.GetName() == LL_Deck
+}
+
+// 是在额外
+func (p *Group) IsExtra() bool {
+	return p != nil && p.GetName() == LL_Extra
+}
+
+// 是在墓地
+func (p *Group) IsGrave() bool {
+	return p != nil && p.GetName() == LL_Grave
+}
+
+// 是在手牌
+func (p *Group) IsHand() bool {
+	return p != nil && p.GetName() == LL_Hand
+}
+
+// 是在怪兽区
+func (p *Group) IsMzone() bool {
+	return p != nil && p.GetName() == LL_Mzone
+}
+
+// 是在魔陷区
+func (p *Group) IsSzone() bool {
+	return p != nil && p.GetName() == LL_Szone
+}
+
+// 是在手牌
+func (p *Group) IsRemoved() bool {
+	return p != nil && p.GetName() == LL_Removed
+}
+
+// 是头像
+func (p *Group) IsPortrait() bool {
+	return p != nil && p.GetName() == LL_Portrait
+}

@@ -1,58 +1,58 @@
 package ygo_core
 
-// 卡牌类型 Card Types
-type lc_type uint32
+// 卡牌类型 Types
+type lt_type uint32
 
 const (
-	LC_None lc_type = 0
+	LT_None lt_type = 0
 
-	LC_MonsterNormal   lc_type = 1 << (32 - 1 - iota) //普通怪兽 黄色
-	LC_MonsterEffect                                  //效果怪兽 橙色
-	LC_MonsterFusion                                  //融合怪兽 紫色
-	LC_MonsterXyz                                     //超量怪兽 黑色
-	LC_MonsterSynchro                                 //同调怪兽 白色
-	LC_MonsterRitual                                  //仪式怪兽 蓝色
-	LC_SpellNormal                                    //普通魔法 通常
-	LC_SpellRitual                                    //仪式魔法
-	LC_SpellContinuous                                //永续魔法
-	LC_SpellEquip                                     //装备魔法
-	LC_SpellField                                     //场地魔法
-	LC_SpellQuickPlay                                 //速攻魔法 速度2
-	LC_TrapNormal                                     //普通陷阱 速度2
-	LC_TrapContinuous                                 //永续陷阱 速度2
-	LC_TrapCounter                                    //反击陷阱 速度3
+	LT_MonsterNormal   lt_type = 1 << (32 - 1 - iota) //普通怪兽 黄色
+	LT_MonsterEffect                                  //效果怪兽 橙色
+	LT_MonsterFusion                                  //融合怪兽 紫色
+	LT_MonsterXyz                                     //超量怪兽 黑色
+	LT_MonsterSynchro                                 //同调怪兽 白色
+	LT_MonsterRitual                                  //仪式怪兽 蓝色
+	LT_SpellNormal                                    //普通魔法 通常
+	LT_SpellRitual                                    //仪式魔法
+	LT_SpellContinuous                                //永续魔法
+	LT_SpellEquip                                     //装备魔法
+	LT_SpellField                                     //场地魔法
+	LT_SpellQuickPlay                                 //速攻魔法 速度2
+	LT_TrapNormal                                     //普通陷阱 速度2
+	LT_TrapContinuous                                 //永续陷阱 速度2
+	LT_TrapCounter                                    //反击陷阱 速度3
 
 	// 怪物卡
-	LC_Monster = LC_MonsterNormal | LC_MonsterEffect | LC_MonsterXyz | LC_MonsterSynchro | LC_MonsterFusion | LC_MonsterRitual
+	LT_Monster = LT_MonsterNormal | LT_MonsterEffect | LT_MonsterXyz | LT_MonsterSynchro | LT_MonsterFusion | LT_MonsterRitual
 	// 魔法卡
-	LC_Spell = LC_SpellNormal | LC_SpellRitual | LC_SpellContinuous | LC_SpellEquip | LC_SpellField | LC_SpellQuickPlay
+	LT_Spell = LT_SpellNormal | LT_SpellRitual | LT_SpellContinuous | LT_SpellEquip | LT_SpellField | LT_SpellQuickPlay
 	// 陷阱卡
-	LC_Trap = LC_TrapNormal | LC_TrapContinuous | LC_TrapCounter
+	LT_Trap = LT_TrapNormal | LT_TrapContinuous | LT_TrapCounter
 	// 魔法卡与陷阱卡
-	LC_SpellAndTrap = LC_Spell | LC_Trap
+	LT_SpellAndTrap = LT_Spell | LT_Trap
 )
 
-var lc = map[lc_type]string{
-	LC_None:            "NoneType",
-	LC_MonsterNormal:   "MonsterNormal",   //普通怪兽 黄色
-	LC_MonsterEffect:   "MonsterEffect",   //效果怪兽 橙色
-	LC_MonsterFusion:   "MonsterFusion",   //融合怪兽 紫色
-	LC_MonsterXyz:      "MonsterXyz",      //超量怪兽 黑色
-	LC_MonsterSynchro:  "MonsterSynchro",  //同调怪兽 白色
-	LC_MonsterRitual:   "MonsterRitual",   //仪式怪兽 蓝色
-	LC_SpellNormal:     "SpellNormal",     //普通魔法 通常
-	LC_SpellRitual:     "SpellRitual",     //仪式魔法
-	LC_SpellContinuous: "SpellContinuous", //永续魔法
-	LC_SpellEquip:      "SpellEquip",      //装备魔法
-	LC_SpellField:      "SpellField",      //场地魔法
-	LC_SpellQuickPlay:  "SpellQuickPlay",  //速攻魔法 速度2
-	LC_TrapNormal:      "TrapNormal",      //普通陷阱 速度2
-	LC_TrapContinuous:  "TrapContinuous",  //永续陷阱 速度2
-	LC_TrapCounter:     "TrapCounter",     //反击陷阱 速度3
+var lc = map[lt_type]string{
+	LT_None:            "NoneType",
+	LT_MonsterNormal:   "MonsterNormal",   //普通怪兽 黄色
+	LT_MonsterEffect:   "MonsterEffect",   //效果怪兽 橙色
+	LT_MonsterFusion:   "MonsterFusion",   //融合怪兽 紫色
+	LT_MonsterXyz:      "MonsterXyz",      //超量怪兽 黑色
+	LT_MonsterSynchro:  "MonsterSynchro",  //同调怪兽 白色
+	LT_MonsterRitual:   "MonsterRitual",   //仪式怪兽 蓝色
+	LT_SpellNormal:     "SpellNormal",     //普通魔法 通常
+	LT_SpellRitual:     "SpellRitual",     //仪式魔法
+	LT_SpellContinuous: "SpellContinuous", //永续魔法
+	LT_SpellEquip:      "SpellEquip",      //装备魔法
+	LT_SpellField:      "SpellField",      //场地魔法
+	LT_SpellQuickPlay:  "SpellQuickPlay",  //速攻魔法 速度2
+	LT_TrapNormal:      "TrapNormal",      //普通陷阱 速度2
+	LT_TrapContinuous:  "TrapContinuous",  //永续陷阱 速度2
+	LT_TrapCounter:     "TrapCounter",     //反击陷阱 速度3
 }
 
-func (c lc_type) String() (s string) {
-	if c != LC_None {
+func (c lt_type) String() (s string) {
+	if c != LT_None {
 		s = lc[c]
 		if s != "" {
 			return
@@ -66,6 +66,111 @@ func (c lc_type) String() (s string) {
 		return
 	}
 	return lc[c]
+}
+
+// 是特殊作用卡牌
+func (c lt_type) IsNone() bool {
+	return c == LT_None
+}
+
+// 是额外的
+func (c lt_type) IsExtra() bool {
+	return !(c.IsSpellAndTrap() || c.IsMonsterNormal() || c.IsMonsterEffect())
+}
+
+// 是魔法卡
+func (c lt_type) IsSpellAndTrap() bool {
+	return (c & LT_SpellAndTrap) != 0
+}
+
+// 是魔法卡
+func (c lt_type) IsSpell() bool {
+	return (c & LT_Spell) != 0
+}
+
+// 是陷阱卡
+func (c lt_type) IsTrap() bool {
+	return (c & LT_Trap) != 0
+}
+
+// 是怪兽卡
+func (c lt_type) IsMonster() bool {
+	return (c & LT_Monster) != 0
+}
+
+// 是普通怪兽
+func (c lt_type) IsMonsterNormal() bool {
+	return (c & LT_MonsterNormal) != 0
+}
+
+// 是效果怪兽
+func (c lt_type) IsMonsterEffect() bool {
+	return (c & LT_MonsterEffect) != 0
+}
+
+// 是融合怪兽
+func (c lt_type) IsMonsterFusion() bool {
+	return (c & LT_MonsterFusion) != 0
+}
+
+// 是超量怪兽
+func (c lt_type) IsMonsterXyz() bool {
+	return (c & LT_MonsterXyz) != 0
+}
+
+// 是同调怪兽
+func (c lt_type) IsMonsterSynchro() bool {
+	return (c & LT_MonsterSynchro) != 0
+}
+
+// 是仪式怪兽
+func (c lt_type) IsMonsterRitual() bool {
+	return (c & LT_MonsterRitual) != 0
+}
+
+// 是普通魔法
+func (c lt_type) IsSpellNormal() bool {
+	return (c & LT_SpellNormal) != 0
+}
+
+// 是仪式魔法
+func (c lt_type) IsSpellRitual() bool {
+	return (c & LT_SpellRitual) != 0
+}
+
+// 是永续魔法
+func (c lt_type) IsSpellContinuous() bool {
+	return (c & LT_SpellContinuous) != 0
+}
+
+// 是装备魔法
+func (c lt_type) IsSpellEquip() bool {
+	return (c & LT_SpellEquip) != 0
+}
+
+// 是场地魔法
+func (c lt_type) IsSpellField() bool {
+	return (c & LT_SpellField) != 0
+}
+
+// 是速攻魔法
+func (c lt_type) IsSpellQuickPlay() bool {
+	return (c & LT_SpellQuickPlay) != 0
+}
+
+// 是普通陷阱
+func (c lt_type) IsTrapNormal() bool {
+	return (c & LT_TrapNormal) != 0
+}
+
+// 是永续陷阱
+func (c lt_type) IsSustainsTrap() bool {
+	return (c & LT_TrapContinuous) != 0
+}
+
+// 是反击陷阱
+func (c lt_type) IsTrapCounter() bool {
+	return (c & LT_TrapCounter) != 0
 }
 
 // 怪兽属性 Attributes
@@ -109,6 +214,41 @@ func (c la_type) String() (s string) {
 		return
 	}
 	return la[c]
+}
+
+//地
+func (c la_type) IsEarth() bool {
+	return c == LA_Earth
+}
+
+//水
+func (c la_type) IsWater() bool {
+	return c == LA_Water
+}
+
+//火
+func (c la_type) IsFire() bool {
+	return c == LA_Fire
+}
+
+//风
+func (c la_type) IsWind() bool {
+	return c == LA_Wind
+}
+
+//光
+func (c la_type) IsLight() bool {
+	return c == LA_Light
+}
+
+//暗
+func (c la_type) IsDark() bool {
+	return c == LA_Dark
+}
+
+//神
+func (c la_type) IsDevine() bool {
+	return c == LA_Devine
 }
 
 // 怪兽种族 Races
@@ -187,6 +327,116 @@ func (c lr_type) String() (s string) {
 	return lr[c]
 }
 
+//战士族
+func (c lr_type) IsWarrior() bool {
+	return (c & LR_Warrior) != LR_None
+}
+
+//魔法使用族
+func (c lr_type) IsSpellcaster() bool {
+	return (c & LR_Spellcaster) != LR_None
+}
+
+//精灵族 天使族
+func (c lr_type) IsFairy() bool {
+	return (c & LR_Fairy) != LR_None
+}
+
+//恶魔族
+func (c lr_type) IsFiend() bool {
+	return (c & LR_Fiend) != LR_None
+}
+
+//不死族
+func (c lr_type) IsZombie() bool {
+	return (c & LR_Zombie) != LR_None
+}
+
+//机械族
+func (c lr_type) IsMachine() bool {
+	return (c & LR_Machine) != LR_None
+}
+
+//水族
+func (c lr_type) IsWater() bool {
+	return (c & LR_Water) != LR_None
+}
+
+//炎族
+func (c lr_type) IsFire() bool {
+	return (c & LR_Fire) != LR_None
+}
+
+//岩石族
+func (c lr_type) IsRock() bool {
+	return (c & LR_Rock) != LR_None
+}
+
+//鸟兽族
+func (c lr_type) IsWingedBeast() bool {
+	return (c & LR_WingedBeast) != LR_None
+}
+
+//植物族
+func (c lr_type) IsPlant() bool {
+	return (c & LR_Plant) != LR_None
+}
+
+//昆虫族
+func (c lr_type) IsInsect() bool {
+	return (c & LR_Insect) != LR_None
+}
+
+//雷族
+func (c lr_type) IsThunder() bool {
+	return (c & LR_Thunder) != LR_None
+}
+
+//龙族
+func (c lr_type) IsDragon() bool {
+	return (c & LR_Dragon) != LR_None
+}
+
+//兽族
+func (c lr_type) IsBeast() bool {
+	return (c & LR_Beast) != LR_None
+}
+
+//兽战士族
+func (c lr_type) IsBeastWarrior() bool {
+	return (c & LR_BeastWarrior) != LR_None
+}
+
+//恐龙族
+func (c lr_type) IsDinosaur() bool {
+	return (c & LR_Dinosaur) != LR_None
+}
+
+//鱼族
+func (c lr_type) IsFish() bool {
+	return (c & LR_Fish) != LR_None
+}
+
+//海龙族
+func (c lr_type) IsSeaSerpent() bool {
+	return (c & LR_SeaSerpent) != LR_None
+}
+
+//爬虫族
+func (c lr_type) IsReptile() bool {
+	return (c & LR_Reptile) != LR_None
+}
+
+//念动力族
+func (c lr_type) IsPsychic() bool {
+	return (c & LR_Psychic) != LR_None
+}
+
+//幻神兽族
+func (c lr_type) IsDivineBeast() bool {
+	return (c & LR_DivineBeast) != LR_None
+}
+
 // 表示形式 Expression
 type le_type uint32
 
@@ -198,39 +448,70 @@ const (
 	LE_Attack                                  // 攻击状态
 	LE_Defense                                 // 守备状态
 
-	LE_FaceUpAttack    = LE_FaceUp | LE_Attack    // 朝上攻击
-	LE_FaceDownAttack  = LE_FaceDown | LE_Attack  // 朝下攻击
-	LE_FaceUpDefense   = LE_FaceUp | LE_Defense   // 朝上防御
-	LE_FaceDownDefense = LE_FaceDown | LE_Defense // 朝下防御
+	LE_FaceUpAttack    le_type = LE_FaceUp | LE_Attack    // 朝上攻击
+	LE_FaceDownAttack  le_type = LE_FaceDown | LE_Attack  // 朝下攻击
+	LE_FaceUpDefense   le_type = LE_FaceUp | LE_Defense   // 朝上防御
+	LE_FaceDownDefense le_type = LE_FaceDown | LE_Defense // 朝下防御
 
-	LE_ad = LE_Attack | LE_Defense
-	LE_fd = LE_FaceUp | LE_FaceDown
+	LE_ad   le_type = LE_Attack | LE_Defense
+	LE_fd   le_type = LE_FaceUp | LE_FaceDown
+	LE_peek le_type = 1
 )
 
 var le = map[le_type]string{
-	LE_None:     "NoneExpre",
-	LE_FaceUp:   "FaceUp",   // 正面朝上
-	LE_FaceDown: "FaceDown", // 正面朝下
-	LE_Attack:   "Attack",   // 攻击状态
-	LE_Defense:  "Defense",  // 守备状态
-
+	LE_None:            "NoneExpre",
+	LE_FaceUp:          "FaceUp",   // 正面朝上
+	LE_FaceDown:        "FaceDown", // 正面朝下
+	LE_Attack:          "Attack",   // 攻击状态
+	LE_Defense:         "Defense",  // 守备状态
+	LE_FaceUpAttack:    "FaceUpAttack",
+	LE_FaceDownAttack:  "FaceDownAttack",
+	LE_FaceUpDefense:   "FaceUpDefense",
+	LE_FaceDownDefense: "FaceDownDefense",
 }
 
 func (c le_type) String() (s string) {
-	if c != LE_None {
-		s = le[c]
-		if s != "" {
-			return
-		}
-		for k, v := range le {
-			if (k & c) != 0 {
-				s += v
-				s += ""
-			}
-		}
-		return
-	}
-	return le[c]
+	return le[c&(LE_ad|LE_fd)]
+}
+
+// 判断是攻击表示
+func (c le_type) IsAttack() bool {
+	return (c & LE_Attack) == LE_Attack
+}
+
+// 判断是防御表示
+func (c le_type) IsDefense() bool {
+	return (c & LE_Defense) == LE_Defense
+}
+
+// 判断是面朝
+func (c le_type) IsFaceUp() bool {
+	return (c & LE_FaceUp) == LE_FaceUp
+}
+
+// 判断是面朝下
+func (c le_type) IsFaceDown() bool {
+	return (c & LE_FaceDown) == LE_FaceDown
+}
+
+// 判断是面朝上攻击表示
+func (c le_type) IsFaceUpAttack() bool {
+	return (c & LE_FaceUpAttack) == LE_FaceUpAttack
+}
+
+// 判断是面朝下攻击表示
+func (c le_type) IsFaceDownAttack() bool {
+	return (c & LE_FaceDownAttack) == LE_FaceDownAttack
+}
+
+// 判断是面朝上防御表示
+func (c le_type) IsFaceUpDefense() bool {
+	return (c & LE_FaceUpDefense) == LE_FaceUpDefense
+}
+
+// 判断是面朝下防御表示
+func (c le_type) IsFaceDownDefense() bool {
+	return (c & LE_FaceDownDefense) == LE_FaceDownDefense
 }
 
 // 手牌主动方法 Initiative
@@ -250,22 +531,22 @@ const (
 )
 
 // 召唤方式 Summon
-type ls_type uint32
+//type ls_type uint32
 
-const (
-	LS_None ls_type = 0
+//const (
+//	LS_None ls_type = 0
 
-	LS_Normal   ls_type = 1 << (32 - 1 - iota) // 通常
-	LS_Advance                                 // 上级
-	LS_Dual                                    // 二重
-	LS_Flip                                    // 翻转
-	LS_Special                                 // 特殊
-	LS_Fusion                                  // 融合
-	LS_Ritual                                  // 仪式
-	LS_Synchro                                 // 同调
-	LS_Excess                                  // 超量
-	LS_Pendulum                                // 摇摆
-)
+//	LS_Normal   ls_type = 1 << (32 - 1 - iota) // 通常
+//	LS_Advance                                 // 上级
+//	LS_Dual                                    // 二重
+//	LS_Flip                                    // 翻转
+//	LS_Special                                 // 特殊
+//	LS_Fusion                                  // 融合
+//	LS_Ritual                                  // 仪式
+//	LS_Synchro                                 // 同调
+//	LS_Excess                                  // 超量
+//	LS_Pendulum                                // 摇摆
+//)
 
 // 游戏阶段 Phase
 type lp_type uint32
@@ -316,18 +597,17 @@ type ll_type string
 const (
 	LL_None ll_type = ""
 
-	LL_Deck    ll_type = "deck"    // 卡组
-	LL_Hand    ll_type = "hand"    // 手牌
-	LL_Mzone   ll_type = "mzone"   // 怪兽区
-	LL_Szone   ll_type = "szone"   // 魔陷区
-	LL_Grave   ll_type = "grave"   // 墓地
-	LL_Removed ll_type = "removed" // 移除
-	LL_Extra   ll_type = "extra"   // 额外
-	LL_Field   ll_type = "field"   // 场地
-	LL_OverLay ll_type = "overLay" //
-	LL_Fzone   ll_type = "fzone"   //
-	LL_Pzone   ll_type = "pzone"   //
-
+	LL_Deck     ll_type = "deck"     // 卡组
+	LL_Hand     ll_type = "hand"     // 手牌
+	LL_Mzone    ll_type = "mzone"    // 怪兽区
+	LL_Szone    ll_type = "szone"    // 魔陷区
+	LL_Grave    ll_type = "grave"    // 墓地
+	LL_Removed  ll_type = "removed"  // 移除
+	LL_Extra    ll_type = "extra"    // 额外
+	LL_Field    ll_type = "field"    // 场地
+	LL_OverLay  ll_type = "overLay"  //
+	LL_Fzone    ll_type = "fzone"    //
+	LL_Pzone    ll_type = "pzone"    //
 	LL_Portrait ll_type = "portrait" // 玩家头像
 )
 
@@ -387,4 +667,5 @@ const (
 	LO_Mitigation          lo_type = "Mitigation"
 	LO_Peek                lo_type = "Peek"
 	LO_LetDiscard          lo_type = "LetDiscard"
+	LO_Intercept           lo_type = "Intercept"
 )

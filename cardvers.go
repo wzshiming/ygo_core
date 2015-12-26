@@ -161,7 +161,7 @@ func (cv *CardVersion) Deck(player *Player) {
 		if t != nil {
 			for i := uint(0); i != v.size; i++ {
 				c := t.Make(player)
-				if c.IsExtra() {
+				if c.GetType().IsExtra() {
 					player.Extra().EndPush(c)
 				} else {
 					player.Deck().EndPush(c)

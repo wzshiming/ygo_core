@@ -45,13 +45,16 @@ const (
 	DamageStep  = "DamageStep"  // 伤害步骤
 
 	// 怪兽事件
-	Flip       = "Flip"       // 反转
-	Deduct     = "Deduct"     // 对玩家造成伤害
-	Fought     = "Fought"     // 战斗步骤结束对双方怪兽发出
-	Expres     = "Expres"     // 改变表示形式
-	FaceUp     = "FaceUp"     // 表侧表示  召唤 特殊召唤 翻转 翻转召唤
-	BearAttack = "BearAttack" // 在伤害计算前向被攻击的怪兽发出
-	Change     = "Change"     // 怪兽卡牌属性发生变化时
+	Flip           = "Flip"           // 反转
+	Deduct         = "Deduct"         // 对玩家造成伤害
+	Fought         = "Fought"         // 战斗步骤结束对双方怪兽发出
+	Expres         = "Expres"         // 改变表示形式
+	FaceUp         = "FaceUp"         // 表侧表示  召唤 特殊召唤 翻转 翻转召唤
+	FaceDown       = "FaceDown"       // 表示离开场地 或者 又被覆盖了
+	BearAttack     = "BearAttack"     // 在伤害计算前向被攻击的怪兽发出
+	Change         = "Change"         // 怪兽卡牌属性发生变化时
+	Defense2Attack = "Defense2Attack" // 防御转攻击
+	Attack2Defense = "Attack2Defense" // 攻击转防御
 
 	// 多种进墓地和除外形式
 	Removed         = "Removed"         // 移除
