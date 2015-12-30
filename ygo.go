@@ -37,22 +37,21 @@ type YGO struct {
 
 	both  map[string]bool
 	multi map[string]bool
-	any   map[*Card]bool
 
 	eventSize uint
 }
 
 func NewYGO(r *agent.Room) *YGO {
 	yg := &YGO{
-		Events:    dispatcher.NewLineEvent(),
-		Room:      r,
-		cards:     map[uint]*Card{},
-		survival:  map[int]int{},
-		StartAt:   time.Now(),
-		players:   map[uint]*Player{},
-		both:      map[string]bool{},
-		multi:     map[string]bool{},
-		any:       map[*Card]bool{},
+		Events:   dispatcher.NewLineEvent(),
+		Room:     r,
+		cards:    map[uint]*Card{},
+		survival: map[int]int{},
+		StartAt:  time.Now(),
+		players:  map[uint]*Player{},
+		both:     map[string]bool{},
+		multi:    map[string]bool{},
+
 		sesstions: map[uint]*agent.Session{},
 	}
 	yg.Room.ForEach(func(sess *agent.Session) {
@@ -63,14 +62,6 @@ func NewYGO(r *agent.Room) *YGO {
 	})
 
 	return yg
-}
-
-func (yg *YGO) OnAny(c *Card) {
-	yg.any[c] = true
-}
-
-func (yg *YGO) OffAny(c *Card) {
-	delete(yg.any, c)
 }
 
 func (yg *YGO) SetCardVer(v *CardVersion) {
@@ -131,6 +122,9 @@ func (yg *YGO) chain(eventName string, ca *Card, pl *Player, args []interface{})
 		yg.eventSize++
 		cs.Clear()
 		yg.EmptyEvent(Chain)
+		if yg.both[eventName] || yg.multi[eventName] {
+			yg.Dispatch(Any)
+		}
 		yg.Dispatch(eventName, args...)
 
 		yg.ForEventEach(Chain, func(n string, i interface{}) {
@@ -138,9 +132,6 @@ func (yg *YGO) chain(eventName string, ca *Card, pl *Player, args []interface{})
 				cs.EndPush(v)
 			}
 		})
-		for c, _ := range yg.any {
-			cs.EndPush(c)
-		}
 		cs.ReDup()
 	}
 
@@ -150,6 +141,9 @@ func (yg *YGO) chain(eventName string, ca *Card, pl *Player, args []interface{})
 	if cs.Len() > 0 || yg.both[eventName] {
 		tar := pl.GetTarget()
 		if yg.multi[eventName] {
+			for tar.chain(eventName, ca, cs, args) {
+				e()
+			}
 			for pl.chain(eventName, ca, cs, args) {
 				e()
 			}

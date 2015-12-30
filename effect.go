@@ -37,6 +37,28 @@ func (ca *Card) RegisterSpellNormalPuah(lo lo_type, e interface{}) {
 	})
 }
 
+func (ca *Card) RegisterSpellQuickPlay(e interface{}) {
+	ca.RegisterSpellNormal(e)
+	ca.AddEvent(InSzone, func() {
+		pl := ca.GetSummoner()
+		//注册 下回合才能 连锁事件
+		pl.OnlyOnce(RoundEnd, func() {
+			if !ca.IsInSzone() {
+				return
+			}
+			ca.RangeGlobal("", OutSzone, Arg{
+				Any: e,
+			})
+		}, ca, e)
+	}, e)
+}
+
+func (ca *Card) RegisterSpellQuickPlayPush(lo lo_type, e interface{}) {
+	ca.RegisterSpellQuickPlay(func() {
+		ca.PushSpell(lo, e)
+	})
+}
+
 // 装备魔法  有发动条件 需要PushSpellEquip
 func (ca *Card) registerSpellEquip(e interface{}) {
 	ca.RegisterSpellUnnormal(e)
@@ -347,10 +369,8 @@ func (ca *Card) RegisterTrapUnnormalAny(e interface{}) {
 			if !ca.IsInSzone() {
 				return
 			}
-			yg := pl.Game()
-			yg.OnAny(ca)
-			ca.AddEvent(OutSzone, func() {
-				yg.OffAny(ca)
+			ca.RangeGlobal("", OutSzone, Arg{
+				Any: e,
 			})
 		}, ca, e)
 	}, e)

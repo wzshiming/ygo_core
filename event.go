@@ -343,60 +343,25 @@ func (ca *Card) registerSpellAndTrap() {
 			},
 		})
 
-		ca.RangeGlobal(In+ff, Out+ff, Arg{
-			MP: func() {
-				pl := ca.GetSummoner()
-				if !pl.IsCurrent() {
-					return
-				}
-				if !ca.IsFaceDown() {
-					return
-				}
-				ca.DispatchLocal(CheckSpell)
-			},
-		})
+		if !ca.GetType().IsSpellQuickPlay() {
+			ca.RangeGlobal(In+ff, Out+ff, Arg{
+				MP: func() {
+					pl := ca.GetSummoner()
+					if !pl.IsCurrent() {
+						return
+					}
+					if !ca.IsFaceDown() {
+						return
+					}
+					ca.DispatchLocal(CheckSpell)
+				},
+			})
+		}
 	} else {
 		Debug("registerSpellAndTrap", ca)
 	}
 
 }
-
-//// 注册一张陷阱卡
-//func (ca *Card) registerTrap(event string, e interface{}, only bool) {
-
-//	//注册 陷阱卡 放置后的事件
-//	ca.AddEvent(InSzone, func() {
-//		pl := ca.GetSummoner()
-//		//注册 下回合才能 连锁事件
-//		pl.OnlyOnce(RoundEnd, func() {
-//			//ca.registerIgnitionSelector(event, e, UseTrap)
-//		}, ca, event, e)
-//	}, event, e)
-
-//	//注册 陷阱卡发动事件
-//	ca.AddEvent(UseTrap, func() {
-//		pl := ca.GetSummoner()
-//		if ca.IsValid() {
-//			ca.Dispatch(Chain)
-//			pl.MsgPub("msg.023", Arg{"self": ca.ToUint()})
-//			if only {
-//				ca.Dispatch(Depleted)
-//			}
-//		} else {
-//			pl.MsgPub("msg.024", Arg{"self": ca.ToUint()})
-//		}
-//	})
-//}
-
-//// 注册一张不通常的陷阱卡
-//func (ca *Card) RegisterTrapUnnormal(event string, e interface{}) {
-//	ca.registerTrap(event, e, false)
-//}
-
-//// 注册一张通常的陷阱卡
-//func (ca *Card) RegisterTrapNormal(event string, e interface{}) {
-//	ca.registerTrap(event, e, true)
-//}
 
 // 推送卡牌使之能连锁 玩家可以选择这张卡发动效果
 func (ca *Card) PushChain(lo lo_type, e interface{}) {

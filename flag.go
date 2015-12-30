@@ -37,6 +37,7 @@ const (
 	Summon        = "Summon"        // 通常召唤
 	SummonFlip    = "SummonFlip"    // 反转召唤
 	SummonSpecial = "SummonSpecial" // 特殊召唤
+	Any           = "Any"           // 任意阶段
 	//特殊召唤 子事件
 	SummonFusion = "SummonFusion" // 融合召唤
 
