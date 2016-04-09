@@ -301,7 +301,7 @@ func (pl *Player) chain(eventName string, ca *Card, cs *Cards, a []interface{}) 
 		ca.OnlyOnce(Suf+eventName, func() {
 			pl.MsgPub("msg.007", Arg{"self": c.ToUint(), "rival": ca.ToUint(), "event": eventName})
 			c.Dispatch(uu, a...)
-		}, c)
+		})
 	}
 
 	return pl.noskip
@@ -536,12 +536,12 @@ func (pl *Player) selectFor() (*Card, uint) {
 
 func (pl *Player) selectForSelf(ci ...interface{}) (c *Card, u uint) {
 	css := NewCards(ci...)
-	pl.call(setPickRe(css, pl))
 	if css.Len() == 0 {
 		// 如果连锁时没有可以发动的卡 延迟一段时间 直接返回 照顾手残党
-		nap(RandInt(20) + 5)
+		nap(RandInt(5) + 5)
 		return nil, LI_No
 	}
+	pl.call(setPickRe(css, pl))
 	defer pl.call(cloPick(pl))
 	if c, u = pl.selectFor(); c != nil {
 		if css.IsExistCard(c) {

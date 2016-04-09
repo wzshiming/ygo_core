@@ -1,7 +1,6 @@
 package ygo_core
 
 // 魔法卡 定义事件
-
 func (ca *Card) PushSpell(lo lo_type, e interface{}) {
 	ca.PushChain(lo, func() {
 		ca.Dispatch(UseSpell)
@@ -46,11 +45,13 @@ func (ca *Card) RegisterSpellQuickPlay(e interface{}) {
 			if !ca.IsInSzone() {
 				return
 			}
+			// 直到离开魔陷区
 			ca.RangeGlobal("", OutSzone, Arg{
 				Any: e,
 			})
-		}, ca, e)
-	}, e)
+		})
+	})
+
 }
 
 func (ca *Card) RegisterSpellQuickPlayPush(lo lo_type, e interface{}) {
@@ -124,8 +125,12 @@ func (ca *Card) EquipTargetFlash() {
 // 给卡牌 添加 在场上的 装备效果
 func (ca *Card) effectEquipBind(c *Card) {
 	// 注册 ca 直到失效时
+	et := ca.AddEvent(equipTarget, c)
+	ca.AddEvent(Disabled, func() {
+		et.Close()
+	})
+
 	ca.Range("", Disabled, Arg{
-		equipTarget: c,
 		// 丢失目标时
 		equipMissed: func() {
 			if ca.EventSize(equipTarget) == 0 {
@@ -139,7 +144,7 @@ func (ca *Card) effectEquipBind(c *Card) {
 		equipList: ca,
 		// c离开场地时  注意 现在这种离开怪兽区的写法 对改变控制者 也会失效
 		Suf + OutMzone: func() {
-			ca.RemoveEvent(equipTarget, c)
+			et.Close()
 			ca.Dispatch(equipMissed)
 		},
 	})
@@ -337,8 +342,8 @@ func (ca *Card) RegisterTrapUnnormal(e interface{}, events ...string) {
 			}
 			ca.RangeGlobal("", OutSzone, ar)
 
-		}, ca, e)
-	}, e)
+		})
+	})
 }
 func (ca *Card) RegisterTrapUnnormalPush(lo lo_type, e interface{}, events ...string) {
 	ca.RegisterTrapUnnormal(func() {
@@ -372,8 +377,8 @@ func (ca *Card) RegisterTrapUnnormalAny(e interface{}) {
 			ca.RangeGlobal("", OutSzone, Arg{
 				Any: e,
 			})
-		}, ca, e)
-	}, e)
+		})
+	})
 }
 
 func (ca *Card) RegisterTrapUnnormalAnyPush(lo lo_type, e interface{}) {

@@ -621,9 +621,9 @@ type lo_type string
 const (
 	LO_None lo_type = ""
 
-	LO_BP lo_type = "BP"
-	LO_MP lo_type = "MP"
-	LO_EP lo_type = "EP"
+	LO_BP  lo_type = "BP"
+	LO_MP2 lo_type = "MP2"
+	LO_EP  lo_type = "EP"
 
 	LO_Chain               lo_type = "Chain"
 	LO_Onset               lo_type = "Onset"
@@ -656,6 +656,7 @@ const (
 	LO_Equip               lo_type = "Equip"
 	LO_Fusion              lo_type = "Fusion"
 	LO_JoinDeckBot         lo_type = "JoinDeckBot"
+	LO_JoinDeckTop         lo_type = "JoinDeckTop"
 	LO_PutBack             lo_type = "PutBack"
 	LO_Reply               lo_type = "Reply"
 	LO_Hurt                lo_type = "Hurt"

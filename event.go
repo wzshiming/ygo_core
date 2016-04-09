@@ -88,7 +88,7 @@ func NewPortraitCardOriginal() *CardOriginal {
 						return
 					}
 
-					ca.PushChain(LO_MP, func() {
+					ca.PushChain(LO_MP2, func() {
 						pl.Skip(LP_Main2)
 
 					})
@@ -247,6 +247,7 @@ func (ca *Card) registerNormal() {
 
 // 魔法卡陷阱卡 操作
 func (ca *Card) registerSpellAndTrap() {
+
 	// 先覆盖
 	e1 := func(s string) {
 		pl := ca.GetSummoner()
@@ -258,7 +259,7 @@ func (ca *Card) registerSpellAndTrap() {
 
 		if ca.IsInSzone() || ca.IsInField() {
 			ca.SetFaceDownAttack()
-			pl.Msg("021", Arg{"self": ca.ToUint()})
+			pl.Msg("msg.021", Arg{"self": ca.ToUint()})
 		} else {
 			ca.StopOnce(s)
 		}
@@ -276,6 +277,7 @@ func (ca *Card) registerSpellAndTrap() {
 			Pre + Cover: e1,
 		})
 
+		// 如果发动先翻面
 		ca.Range(InSzone, OutSzone, Arg{
 			Pre + UseTrap: e2,
 		})
@@ -296,17 +298,18 @@ func (ca *Card) registerSpellAndTrap() {
 		})
 
 	} else if ca.GetType().IsSpell() {
-		// 注册 使用 为 发动魔法卡
-
+		// 注册 使用 为 魔法卡 或场地魔法卡
 		ff := string(LL_Szone)
 		if ca.GetType().IsSpellField() {
 			ff = string(LL_Field)
 		}
 
+		// 如果发动先翻面
 		ca.Range(In+ff, Out+ff, Arg{
 			Pre + UseSpell: e2,
 		})
 
+		// 如果要发动魔法卡先覆盖
 		ca.Range(InHand, OutHand, Arg{
 			// 代价 先覆盖
 			Pre + UseSpell: func(s string) {
@@ -325,17 +328,17 @@ func (ca *Card) registerSpellAndTrap() {
 			Pre + Cover: e1,
 		})
 
+		// 魔法卡在手牌
 		ca.RangeGlobal(InHand, OutHand, Arg{
 			MP: func() {
 				pl := ca.GetSummoner()
 				if !pl.IsCurrent() {
 					return
 				}
-				if pl.Szone().Len() >= 5 {
+
+				if !ca.GetType().IsSpellField() && pl.Szone().Len() >= 5 {
 					return
 				}
-
-				ca.DispatchLocal(CheckSpell)
 
 				ca.PushChain(LO_Cover, func() {
 					ca.Dispatch(Cover)
@@ -344,6 +347,7 @@ func (ca *Card) registerSpellAndTrap() {
 		})
 
 		if !ca.GetType().IsSpellQuickPlay() {
+			// 不是速攻魔法卡 可以在自己的mp 在魔陷区检查发动
 			ca.RangeGlobal(In+ff, Out+ff, Arg{
 				MP: func() {
 					pl := ca.GetSummoner()
@@ -351,6 +355,35 @@ func (ca *Card) registerSpellAndTrap() {
 						return
 					}
 					if !ca.IsFaceDown() {
+						return
+					}
+					ca.DispatchLocal(CheckSpell)
+				},
+			})
+
+			// 不是速攻魔法卡 可以在自己的mp 在手牌检查发动
+			ca.RangeGlobal(InHand, OutHand, Arg{
+				MP: func() {
+					pl := ca.GetSummoner()
+					if !pl.IsCurrent() {
+						return
+					}
+
+					if !ca.GetType().IsSpellField() && pl.Szone().Len() >= 5 {
+						return
+					}
+					ca.DispatchLocal(CheckSpell)
+				},
+			})
+		} else {
+			// 是速攻魔法卡  可以在自己的任意阶段手牌检查发动
+			ca.RangeGlobal(InHand, OutHand, Arg{
+				Any: func() {
+					pl := ca.GetSummoner()
+					if !pl.IsCurrent() {
+						return
+					}
+					if pl.Szone().Len() >= 5 {
 						return
 					}
 					ca.DispatchLocal(CheckSpell)
@@ -387,17 +420,17 @@ func (ca *Card) PushConst() int {
 // 注册全局效果监听 直到注销
 func (ca *Card) RegisterGlobalListen(event string, e interface{}) {
 	yg := ca.GetSummoner().Game()
-	yg.AddEvent(event, e, ca)
+	ev := yg.AddEvent(event, e)
 	ca.OnlyOnce(UnregisterAllGlobalListen, func() {
-		yg.RemoveEvent(event, e, ca)
-	}, event, e)
+		ev.Close()
+	})
 }
 
-// 注销全局效果监听
-func (ca *Card) UnregisterGlobalListen(event string, e interface{}) {
-	yg := ca.GetSummoner().Game()
-	yg.RemoveEvent(event, e, ca)
-}
+//// 注销全局效果监听
+//func (ca *Card) UnregisterGlobalListen(event string, e interface{}) {
+//	yg := ca.GetSummoner().Game()
+//	yg.RemoveEvent(event, e, ca)
+//}
 
 // 注销全部全局效果监听
 func (ca *Card) UnregisterAllGlobalListen() {
@@ -405,15 +438,15 @@ func (ca *Card) UnregisterAllGlobalListen() {
 }
 
 func (ca *Card) AddEventPre(event string, f interface{}, token ...interface{}) {
-	ca.AddEvent(Pre+event, f, token...)
+	ca.AddEvent(Pre+event, f)
 }
 
 func (ca *Card) AddEventSuf(event string, f interface{}, token ...interface{}) {
-	ca.AddEvent(Suf+event, f, token...)
+	ca.AddEvent(Suf+event, f)
 }
 
 func (ca *Card) AddEventUsed(event string, f interface{}, token ...interface{}) {
-	ca.AddEvent(Used+event, f, token...)
+	ca.AddEvent(Used+event, f)
 }
 
 // 注册翻转效果
