@@ -167,7 +167,7 @@ func (cp *Cards) Find(fun func(*Card) bool) (cs *Cards) {
 }
 
 func (cp *Cards) Random() *Card {
-	return cp.Remove(RandInt(cp.Len()))
+	return cp.Get(RandInt(cp.Len()))
 }
 
 func (cp *Cards) ReDup() {
